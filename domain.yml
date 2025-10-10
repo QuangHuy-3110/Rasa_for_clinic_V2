@@ -1,0 +1,77 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - request_doctor
+  - affirm
+  - deny
+  - provide_medical_info
+
+entities:
+  - symptom
+  - current_task
+  - specialty
+
+slots:
+  symptoms:
+    type: list
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: symptom
+
+  current_task:
+    type: categorical
+    influence_conversation: true
+    mappings:
+      - type: custom # Set qua custom action
+
+  specialty_suggested:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: custom
+
+responses:
+  utter_greet:
+    - text: "Xin chào! Tôi là chatbot hỗ trợ phòng khám. Bạn cần gì hôm nay?"
+      buttons:
+        - title: "Đề xuất bác sĩ"
+          payload: "/request_doctor"
+        - title: "Đặt lịch hẹn"
+          payload: "/book_appointment"
+        - title: "Xem thông tin phòng khám"
+          payload: "/clinic_info"
+
+  utter_goodbye:
+    - text: "Tạm biệt! Chúc bạn sức khỏe."
+
+  utter_ask_symptoms:
+    - text: "Bạn đang gặp triệu chứng gì? Hãy mô tả chi tiết (có thể liệt kê nhiều, ví dụ: 'đau đầu, sốt')."
+
+  # utter_recommend_doctor:
+  #   - text: "Dựa trên triệu chứng của bạn, tôi đề xuất chuyên khoa {specialty_suggested}. Dưới đây là danh sách bác sĩ phù hợp:"
+  # Sẽ được populate động từ action (danh thiếp với buttons)
+
+  utter_confirm:
+    - text: "Bạn có muốn đặt lịch với bác sĩ này không?"
+      buttons:
+        - title: "Có"
+          payload: "affirm"
+        - title: "Không"
+          payload: "deny"
+
+forms:
+  recommend_doctor_form:
+    required_slots:
+      - symptoms
+
+actions:
+  - action_recommend_doctor
+  - validate_recommend_doctor_form
+  - action_set_current_task
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

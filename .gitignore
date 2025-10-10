@@ -1,0 +1,18 @@
+# Bỏ file cache
+__pycache__
+
+# Bỏ các mẫu thử nghiệm
+/models
+models/*.tar.gz
+
+#Bỏ thư viện
+/rasa_env
+
+# Bỏ qua file .env trong actions
+actions/.env
+
+# Bỏ các file của .rasa
+/.rasa
+
+
+

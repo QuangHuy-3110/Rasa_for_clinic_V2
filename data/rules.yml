@@ -1,0 +1,35 @@
+version: "3.1"
+
+rules:
+  # ===================== Đề xuất bác sĩ ============================
+  - rule: Activate recommend doctor form
+    steps:
+      - intent: request_doctor
+      - action: action_set_current_task
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+
+  - rule: Submit recommend doctor form
+    condition:
+      - active_loop: recommend_doctor_form
+    steps:
+      - action: recommend_doctor_form
+      - active_loop: null
+      - action: action_recommend_doctor
+
+  - rule: Handle new symptoms
+    steps:
+      - intent: provide_medical_info
+      - action: action_recommend_doctor
+      # - action: utter_recommend_doctor
+
+  # ===================== Đề xuất bác sĩ ============================
+  - rule: greet
+    steps:
+      - intent: greet
+      - action: utter_greet
+
+  - rule: Say goodbye anytime the user says goodbye
+    steps:
+      - intent: goodbye
+      - action: utter_goodbye

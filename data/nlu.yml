@@ -1,0 +1,143 @@
+version: "3.1"
+
+nlu:
+  - intent: greet
+    examples: |
+      - xin chào
+      - chào bạn
+      - hello
+      - hi
+      - ê
+      - chào cậu
+      - ê mày
+      - chào mày
+      - chào anh
+      - chào chị
+      - chào em 
+      - mày ơi
+      - anh ơi
+      - chị ơi
+      - em ơi
+      - alo
+      - alo alo
+      - ê mày ơi
+      - ê anh ơi
+      - ê chị ơi
+      - ê em ơi 
+      - ê m
+      - m ơi
+
+  - intent: goodbye
+    examples: |
+      - tạm biệt
+      - chào tạm biệt
+      - hẹn gặp lại
+      - bye
+      - bye bye
+      - mình đi đây
+      - mình đi đây nhé
+      - mình đi đây nha
+      - mình đi đây nè
+      - mình đi đây nhé, tạm biệt
+      - mình đi đây nha, tạm biệt
+      - mình đi đây nè, tạm biệt
+      - mình đi đây nhé, hẹn gặp lại
+      - mình đi đây nha, hẹn gặp lại
+      - mình đi đây nè, hẹn gặp lại
+      - mình đi đây nhé, bye
+
+  - intent: request_doctor
+    examples: |
+      - tôi cần bạn đề xuất bác sĩ
+      - hãy đề xuất bác sĩ cho tôi
+      - chọn đề xuất bác sĩ
+      - tôi muốn bạn đề xuất bác sĩ
+      - đề xuất bác sĩ giúp tôi
+      - đề xuất bác sĩ cho tôi
+      - tôi cần đề xuất bác sĩ
+      - tôi muốn đề xuất bác sĩ
+      - đề xuất bác sĩ
+      - chọn đề xuất bác sĩ giúp tôi
+      - chọn đề xuất bác sĩ cho tôi
+      - đề xuất bác sĩ giúp tao coi mày
+      - đề xuất bác sĩ cho tao coi mày
+      - đề xuất bác sĩ coi mày
+      - đề xuất bác sĩ mày ơi
+      - đề xuất bác sĩ giúp tao
+      - giúp tôi đề xuất bác sĩ
+      - tôi cần đề xuất bác sĩ bạn ơi
+      - tôi muốn tìm bác sĩ để khám bệnh
+      - tôi cần tìm bác sĩ để khám bệnh
+      - tôi bị bệnh và cần tìm bác sĩ để khám bệnh
+      - tôi bị bệnh và muốn tìm bác sĩ để khám
+      - tôi bị bệnh và cần bạn đề xuất bác sĩ để khám bệnh
+      - tôi bị bệnh và muốn bạn đề xuất bác sĩ để khám bệnh
+
+  - intent: provide_medical_info
+    examples: |
+      - [đau đầu](symptom) [chóng mặt](symptom) và [buồn nôn](symptom)
+      - bị [ho](symptom) khan [sốt](symptom)
+      - tôi bị [đau bụng](symptom) kèm [tiêu chảy](symptom) và [đầy hơi](symptom) [khó tiêu](symptom)
+      - [da](symptom) [nổi mẩn đỏ](symptom) và [ngứa](symptom)
+      - [mệt mỏi](symptom) toàn thân [chóng mặt](symptom) [tim](symptom) [đập nhanh](symptom)
+      - [đau ngực](symptom) cảm giác [tức ngực](symptom) và [khó thở](symptom) nhẹ
+      - [buồn nôn](symptom) kèm theo [nôn mửa](symptom) [dạ dày](symptom) [đau](symptom) âm ỉ
+      - [tiêu chảy](symptom) liên tục [phân lỏng](symptom) [mất nước](symptom)
+      - [đau khớp](symptom) tay chân [sưng tấy](symptom) [cứng khớp](symptom)
+      - tôi bị [đau lưng](symptom) dưới
+      - [ho](symptom) [sốt](symptom) cao và [đau họng](symptom) rát
+      - [nổi mụn nước](symptom) ở miệng và lưỡi [sốt](symptom) nhẹ
+      - [đau mắt](symptom) đỏ
+      - [khó thở](symptom) [ho](symptom) nhiều
+      - [tê](symptom) tay chân phải [chóng mặt](symptom) [thiếu vitamin](symptom)
+      - [đau dạ dày](symptom) âm ỉ [đầy bụng](symptom) [khó tiêu](symptom) hay bị [trào ngược](symptom)
+      - [phát ban](symptom) toàn thân [ngứa ran](symptom) và [sưng](symptom) [da](symptom) [nóng](symptom) rát
+      - [sốt](symptom) cao [ớn lạnh](symptom) và [đau cơ](symptom) toàn thân [đau đầu](symptom)
+      - [đau tai](symptom) phải [ù](symptom) [điếc](symptom) [chảy dịch](symptom) vàng và [sốt](symptom)
+      - [mất ngủ](symptom) [tim đập](symptom) nhanh
+      - tôi bị [dị ứng](symptom) phấn hoa [chảy nước mũi](symptom) [mắt ngứa đỏ](symptom)
+      - [đau vai gáy](symptom) [tê mỏi](symptom)
+      - [bé](symptom) nhà tôi bị phát [sốt](symptom) quấy khóc và [bỏ bú](symptom)
+      - [đau răng](symptom) hàm dưới [sưng má](symptom) và [sốt](symptom)
+      - [chóng mặt](symptom) quay cuồng kèm theo [ù tai](symptom) và [buồn nôn](symptom)
+      - [da khô](symptom) [nứt nẻ](symptom) và [ngứa](symptom)
+      - [đau cổ họng](symptom) khi nuốt [amidan sưng](symptom) to và [sốt](symptom) bị [viêm họng](symptom)
+      - [tiểu buốt](symptom) và [tiểu ra máu](symptom) [đau](symptom) vùng [bàng quang](symptom)
+      - tôi bị [đau đầu](symptom)
+      - tôi bị [đau bụng](symptom)
+      - tôi bị [sốt cao](symptom)
+      - [đau họng](symptom)
+      - tôi bị [sốt](symptom) 3 4 ngày chưa hết
+      - tôi cảm thấy [khó chịu](symptom) trong người không khỏe lắm
+      - [đau bụng](symptom) [tiêu chảy](symptom) và [ho](symptom)
+      - mấy hôm nay tôi có cảm giác [ăn không ngon](symptom) [không có tiêu](symptom)
+      - [mệt mỏi](symptom) và [chóng mặt](symptom) suốt cả tuần
+      - bé nhà tôi bị [tiêu chảy](symptom) kèm [nôn](symptom)
+      - [đau ngực](symptom) khi thở có thể là [ho hen](symptom)
+      - tôi hay bị [đau lưng](symptom) sau khi ngồi lâu
+      - [sốt nhẹ](symptom) và [đau cơ](symptom) sau khi tập gym
+      - [ngứa mắt](symptom) và chảy nước mũi liên tục
+      - vấn đề của tôi là [đau đầu](symptom)
+      - tôi đang gặp phải [sốt](symptom)
+      - triệu chứng là [đau bụng](symptom)
+
+  - intent: affirm
+    examples: |
+      - có
+      - đúng rồi
+      - vâng
+      - ừ
+      - ok
+      - được
+
+  - intent: deny
+    examples: |
+      - không
+      - không phải
+      - sai
+      - bậy
+      - không được
+      - sai rồi
+      - bậy bạ
+      - tầm bậy
+      - bỏ

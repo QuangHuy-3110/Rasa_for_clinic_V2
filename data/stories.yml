@@ -1,0 +1,30 @@
+version: "3.1"
+
+stories:
+  - story: happy path doctor recommendation
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: request_doctor
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: request_doctor
+
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+      # - action: utter_ask_symptoms
+      - intent: provide_medical_info
+      - slot_was_set:
+          - symptoms: [đau đầu, sốt]
+      - active_loop: null
+      - action: action_recommend_doctor
+      # - action: utter_recommend_doctor
+      - intent: affirm
+      - action: utter_confirm
+
+  - story: greet without doctor
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: goodbye
+      - action: utter_goodbye
