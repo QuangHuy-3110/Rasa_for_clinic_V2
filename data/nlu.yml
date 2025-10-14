@@ -46,6 +46,8 @@ nlu:
       - mình đi đây nè, hẹn gặp lại
       - mình đi đây nhé, bye
 
+  # ==================================== Đề xuất bác sĩ =============================================================
+
   - intent: request_doctor
     examples: |
       - tôi cần bạn đề xuất bác sĩ
@@ -120,6 +122,117 @@ nlu:
       - vấn đề của tôi là [đau đầu](symptom)
       - tôi đang gặp phải [sốt](symptom)
       - triệu chứng là [đau bụng](symptom)
+  # ==================================== Đặt lịch =============================================================
+  - intent: book_appointment
+    examples: |
+      - tôi muốn đặt lịch khám
+      - chọn đặt lịch khám
+      - đặt lịch khám
+      - đặt lịch khám giúp tôi
+      - tôi cần đặt lịch khám
+      - tôi muốn bạn đặt lịch khám giúp tôi
+      - tôi cần bạn đặt lịch khám giúp tôi
+      - tôi muốn bạn giúp tôi đặt lịch khám
+      - tôi cần bạn giúp tôi đặt lịch khám
+      - tôi muốn bạn hỗ trợ tôi đặt lịch khám
+      - tôi cần bạn hỗ trợ tôi đặt lịch khám    
+      - hỗ trợ tôi đặt lịch khám với
+
+  - intent: provide_decription
+    examples: |
+      - tôi bị đau đầu kéo dài từ 3 ngày nay, kèm theo chóng mặt và buồn nôn nhẹ, không ngủ được
+      - bị ho khan suốt đêm qua, sốt khoảng 38 độ và mệt mỏi toàn thân, ho ra đờm trắng
+      - tôi bị đau bụng quặn từng cơn từ sáng, kèm theo tiêu chảy lỏng và đầy hơi, ăn gì cũng khó tiêu
+      - da nổi mẩn đỏ và ngứa ngáy ở cánh tay, bắt đầu sau khi ăn hải sản, giờ lan ra ngực
+      - mệt mỏi toàn thân không rõ lý do, kèm theo chóng mặt khi đứng dậy đột ngột, tim đập nhanh
+      - đau ngực khi hít thở sâu, cảm giác tức ngực và khó thở nhẹ, tệ hơn khi nằm
+      - buồn nôn kèm theo nôn mửa sau bữa ăn, có thể do ăn phải đồ ôi thiu, dạ dày đau âm ỉ
+      - tiêu chảy liên tục nhiều ngày, phân lỏng và có máu lẫn, mất nước nhiều, khát nước liên tục
+      - đau khớp tay chân sưng tấy, tệ hơn vào buổi sáng và sau khi vận động, cứng khớp
+      - tôi bị đau lưng dưới dữ dội, lan xuống chân phải, khó đi lại bình thường, đau nhói khi cúi
+      - ho ra đờm xanh đặc, sốt cao từ tối qua và đau họng rát, nuốt nước bọt đau
+      - nổi mụn nước ở miệng và lưỡi, kèm theo sốt nhẹ và mệt mỏi, ăn uống khó khăn
+      - đau mắt đỏ và chảy nước mắt liên tục, nhạy cảm với ánh sáng mạnh, nhìn mờ
+      - khó thở khi nằm, ho đêm nhiều và có tiếng khò khè trong ngực, thức giấc thường xuyên
+      - tê tay chân phải, kèm theo yếu cơ và chóng mặt khi đi bộ, có thể do thiếu vitamin
+      - đau dạ dày âm ỉ sau ăn, ợ chua và đầy bụng khó tiêu, hay bị trào ngược
+      - phát ban toàn thân sau khi dùng thuốc mới, ngứa ran và sưng nhẹ, da nóng rát
+      - sốt cao đột ngột, ớn lạnh và đau cơ toàn thân như bị cúm, đau đầu dữ dội
+      - đau tai phải ù điếc, chảy dịch vàng và sốt nhẹ kéo dài 2 ngày, nghe kém
+      - mất ngủ triền miên, kèm theo lo âu và tim đập nhanh không rõ nguyên nhân, mồ hôi đêm
+      - tôi bị dị ứng phấn hoa, hắt xì liên tục và chảy nước mũi, mắt ngứa đỏ
+      - đau vai gáy do ngồi máy tính lâu, tê mỏi lan xuống tay, khó xoay cổ
+      - bé nhà tôi bị phát sốt, quấy khóc và bỏ bú, sốt 39 độ từ chiều
+      - đau răng hàm dưới, sưng má và sốt nhẹ, nhai nuốt khó khăn
+      - chóng mặt quay cuồng khi thay đổi tư thế, kèm theo ù tai và buồn nôn
+      - da khô nứt nẻ và ngứa, tệ hơn vào mùa đông, bong tróc ở khuỷu tay
+      - đau cổ họng khi nuốt, amidan sưng to và sốt, có thể bị viêm họng
+      - tiểu buốt và tiểu ra máu, đau vùng bàng quang, đi tiểu nhiều lần
+
+  - intent: provide_specialty
+    examples: |
+      - tôi cần đặt lịch ở chuyên khoa [tim mạch](specialty)
+      - chuyên khoa [da liễu](specialty) để đặt lịch
+      - chuyên khoa [tim](specialty) cho lịch khám
+      - tôi muốn khám [nội tổng quát](specialty) đặt lịch
+      - đặt lịch ở [nhi](specialty)
+      - tôi muốn khám ở khoa [thần kinh](specialty) đặt lịch
+      - tôi muốn đặt lịch ở khoa [nội khoa](specialty)
+      - khoa [ngoại khoa](specialty) cho lịch khám
+      - tôi muốn đặt lịch ở khoa [phụ sản](specialty)
+      - giúp tôi đặt lịch ở khoa [răng hàm mặt](specialty)
+      - hỗ trợ tôi đặt lịch ở khoa [tai mũi họng](specialty)
+      - tôi cần đặt lịch ở khoa [mắt](specialty)
+      - đặt lịch chuyên khoa [tim mạch](specialty)
+      - khám [da liễu](specialty) đặt lịch đi
+      - [khoa nội](specialty) cho lịch khám
+      - [khoa ngoại](specialty)
+
+  - intent: choose_doctor_name
+    examples: |
+      - Bác sĩ [Nguyễn Văn A](doctor_name)
+      - Tôi chọn [Thị B](doctor_name)
+      - Tôi muốn khám bác sĩ [Lê](doctor_name)
+      - Tôi chọn bác sĩ [D](doctor_name)
+      - Tôi muốn khám bác sĩ [Hoàng Vũ Văn E](doctor_name)
+      - Tôi chọn bác sĩ [Đặng Thị F](doctor_name)
+      - Tôi muốn khám bác sĩ [Vũ Văn G](doctor_name)
+      - Tôi chọn bác sĩ [Phạm Thị Hà Hồng H](doctor_name)
+      - Tôi muốn khám bác sĩ [Trần Thị I](doctor_name)
+      - Tôi chọn bác sĩ [Lê Văn K](doctor_name)
+      - Tôi muốn khám bác sĩ [Ngô Thị L](doctor_name)
+      - Tôi chọn bác sĩ [Phan M](doctor_name)
+
+  - intent: provide_time
+    examples: |
+      - [9h sáng](time)
+      - [14:00](time)
+      - lúc [3 giờ chiều](time)
+      - [8 giờ tối](time)
+      - [10h30](time)
+      - [16:15](time)
+      - vào lúc [7 giờ sáng](time)
+      - vào lúc [12:00](time)
+      - vào lúc [5 giờ chiều](time)
+      - vào lúc [20:00](time)
+      - vào lúc [11h30](time)
+      - vào lúc [15:45](time)
+
+  - intent: provide_date
+    examples: |
+      - [20/10/2025](date)
+      - ngày [1/12/2025](date)
+      - [15-11-2025](date)
+      - ngày [30-09-2025](date)
+      - [5/11/2025](date)
+      - ngày [25/12/2025](date)
+      - [01-01-2026](date)
+      - ngày [10-10-2025](date)
+      - [31/12/2025](date)
+      - ngày [24/12/2025](date)
+      - [07-11-2025](date)
+      - ngày [14-11-2025](date)
+      - [05/11/2025](date)
 
   - intent: affirm
     examples: |

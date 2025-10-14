@@ -8,10 +8,21 @@ intents:
   - deny
   - provide_medical_info
 
+  - book_appointment
+  - provide_decription
+  - provide_specialty
+  - choose_doctor_name
+  - provide_time
+  - provide_date
+
 entities:
   - symptom
-  - current_task
   - specialty
+  - doctor_name
+  - appointment_time
+  - decription
+  - date
+  - time
 
 slots:
   symptoms:
@@ -24,6 +35,9 @@ slots:
   current_task:
     type: categorical
     influence_conversation: true
+    values:
+      - request_doctor
+      - book_appointment
     mappings:
       - type: custom # Set qua custom action
 
@@ -31,6 +45,115 @@ slots:
     type: text
     influence_conversation: true
     mappings:
+      - type: custom
+
+  # Điều chỉnh mappings để ưu tiên entity từ payload và hạn chế from_text khi form active
+  doctor_name:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity # Ưu tiên entity được trích xuất từ NLU
+        entity: doctor_name
+      - type: from_entity # Nếu entity đến từ payload của nút bấm
+        entity: doctor_name
+        intent: choose_doctor_name
+      - type: custom # Cho phép action set slot
+      - type: from_text # CHỈ LẤY TỪ TEXT nếu không phải các intent điều khiển flow
+        not_intent:
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - provide_date
+          - provide_time
+          - provide_decription
+          - provide_medical_info # THÊM: Block khi input y tế để tránh overwrite
+          - choose_doctor_name # Không lấy tên bác sĩ từ text nếu người dùng vừa bấm nút chọn bác sĩ
+
+  appointment_time:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: appointment_time
+      - type: from_entity
+        entity: time
+      - type: from_text
+        not_intent:
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - provide_date
+          - choose_doctor_name
+          - provide_decription
+          - provide_medical_info # THÊM: Block khi input y tế
+          - provide_time # Tránh lấy từ payload nếu là nút 'provide_time' không có entity
+      - type: custom
+
+  decription:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: decription
+      - type: from_text
+        intent: # Whitelist intent để chỉ map khi đúng context (thay vì not_intent)
+          - provide_decription
+          - provide_medical_info # Cho phép input y tế ở slot này
+      - type: custom
+
+  specialty:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: specialty
+      - type: from_entity
+        entity: specialty
+        intent: provide_specialty # Nếu entity đến từ payload của nút bấm
+      - type: custom
+      - type: from_text
+        not_intent:
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_date
+          - choose_doctor_name
+          - provide_time
+          - provide_decription
+          - provide_medical_info # THÊM: Block khi input y tế
+          - provide_specialty # Không lấy chuyên khoa từ text nếu người dùng vừa bấm nút chọn chuyên khoa
+
+  date:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: date
+      - type: from_text
+        not_intent:
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - choose_doctor_name
+          - provide_time
+          - provide_decription
+          - provide_medical_info # THÊM: Block khi input y tế
+          - provide_date # Tránh lấy từ payload nếu là nút 'provide_date' không có entity
       - type: custom
 
 responses:
@@ -50,9 +173,25 @@ responses:
   utter_ask_symptoms:
     - text: "Bạn đang gặp triệu chứng gì? Hãy mô tả chi tiết (có thể liệt kê nhiều, ví dụ: 'đau đầu, sốt')."
 
-  # utter_recommend_doctor:
-  #   - text: "Dựa trên triệu chứng của bạn, tôi đề xuất chuyên khoa {specialty_suggested}. Dưới đây là danh sách bác sĩ phù hợp:"
-  # Sẽ được populate động từ action (danh thiếp với buttons)
+  utter_ask_specialty:
+    - text: "Bạn muốn khám chuyên khoa nào? Vui lòng chọn hoặc nhập tên chuyên khoa."
+  #   # Nút bấm sẽ được gửi từ validate_specialty trong actions.py
+
+  utter_specialty_not_found:
+    - text: "Chuyên khoa '{specialty}' không hợp lệ hoặc không có sẵn. Vui lòng chọn từ danh sách sau hoặc nhập lại:"
+
+  utter_ask_doctor_name:
+    - text: "Bạn muốn khám với bác sĩ nào? Vui lòng chọn hoặc nhập tên bác sĩ."
+  # Nút bấm sẽ được gửi từ validate_doctor_name trong actions.py
+
+  utter_ask_appointment_time:
+    - text: "Bạn muốn đặt lịch vào thời gian nào? Vui lòng cho biết thời gian cụ thể."
+
+  utter_ask_decription:
+    - text: "Hãy cho tôi biết thêm chi tiết về tình trạng của bạn."
+
+  utter_ask_date:
+    - text: "Bạn muốn đặt lịch vào ngày nào? Vui lòng cho biết ngày cụ thể."
 
   utter_confirm:
     - text: "Bạn có muốn đặt lịch với bác sĩ này không?"
@@ -62,15 +201,36 @@ responses:
         - title: "Không"
           payload: "deny"
 
+  utter_confirm_booking:
+    - text: "Bạn có muốn xác nhận đặt lịch với bác sĩ {doctor_name} vào {appointment_time} ngày {date} cho chuyên khoa {specialty} với mô tả bệnh trạng: '{decription}' không?"
+      buttons:
+        - title: "Có"
+          payload: "/affirm"
+        - title: "Không"
+          payload: "/deny"
+
+  utter_appointment_cancelled:
+    - text: "Bạn đã hủy đặt lịch hẹn."
+
 forms:
   recommend_doctor_form:
     required_slots:
       - symptoms
 
+  book_appointment_form:
+    required_slots:
+      - specialty
+      - doctor_name
+      - date
+      - appointment_time
+      - decription
+
 actions:
   - action_recommend_doctor
   - validate_recommend_doctor_form
   - action_set_current_task
+  - validate_book_appointment_form
+  - action_book_appointment
 
 session_config:
   session_expiration_time: 60

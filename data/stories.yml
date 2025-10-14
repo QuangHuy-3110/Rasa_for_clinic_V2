@@ -1,6 +1,7 @@
 version: "3.1"
 
 stories:
+  # ================================ Đề xuất bác sĩ =============================================================
   - story: happy path doctor recommendation
     steps:
       - intent: greet
@@ -28,3 +29,36 @@ stories:
       - action: utter_greet
       - intent: goodbye
       - action: utter_goodbye
+  # ================================ Đặt lịch khám =============================================================
+  - story: happy path book appointment
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: book_appointment
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: book_appointment
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      # - action: utter_ask_specialty
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi
+      # - action: utter_ask_doctor_name
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      # - action: utter_ask_date
+      - intent: provide_date
+      # - action: utter_ask_appointment_time
+      - intent: provide_time
+      - slot_was_set:
+          - appointment_time: 3 giờ chiều mai
+      # - action: utter_ask_decription
+      - intent: provide_decription
+      - slot_was_set:
+          - decription: khám bệnh cho con tôi
+      - active_loop: null
+      - action: action_book_appointment
+      - intent: affirm
+      - action: utter_confirm

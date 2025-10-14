@@ -23,7 +23,23 @@ rules:
       - action: action_recommend_doctor
       # - action: utter_recommend_doctor
 
-  # ===================== Đề xuất bác sĩ ============================
+  # ===================== Đặt lịch khám ============================
+  - rule: Activate book appointment form
+    steps:
+      - intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+
+  - rule: Submit book appointment form
+    condition:
+      - active_loop: book_appointment_form
+    steps:
+      - action: book_appointment_form
+      - active_loop: null
+      - action: action_book_appointment
+  # ================================================================
+
   - rule: greet
     steps:
       - intent: greet
