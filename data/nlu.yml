@@ -234,6 +234,53 @@ nlu:
       - ngày [14-11-2025](date)
       - [05/11/2025](date)
 
+  # ==================================== Tra cứu thông tin bác sĩ =============================================================
+
+  - intent: search_doctor_info
+    examples: |
+      - tôi muốn tra cứu thông tin bác sĩ
+      - cho tôi biết thông tin về bác sĩ
+      - chọn tra cứu thông tin bác sĩ
+      - tra cứu thông tin bác sĩ
+      - tra cứu bác sĩ
+      - tìm thông tin bác sĩ
+      - tôi muốn tìm thông tin của bác sĩ
+      - thông tin của bác sĩ
+      - [Trần Văn Nhựt](doctor_name) là ai
+      - bác sĩ tên [Trọng Nguyên](doctor_name) có lí lịch như thế nào
+      - thông tin bác sĩ [Hiếu](doctor_name)
+      - [Huyền](doctor_name) là bác sĩ nào
+      - [Phương Anh](doctor_name) bác sĩ gì
+      - bác sĩ [Minh Anh](doctor_name) là ai
+      - bác sĩ [Nguyễn Văn A](doctor_name) là ai
+      - tôi cần biết thông tin về bác sĩ [Trần Thị B](doctor_name)
+      - Tôi muốn biết thông tin về bác sĩ [Thị C](doctor_name)
+      - cho tôi thông tin về bác sĩ [Lê Văn C](doctor_name)
+      - tìm thông tin về bác sĩ [Lê](doctor_name)
+      - thông tin về bác sĩ [Nguyễn](doctor_name)
+      - thông tin bác sĩ [Tú Trần](doctor_name)
+      - tên bác sĩ là [bác sĩ Hoàng](doctor_name)
+      - tra cứu bác sĩ [Nguyễn Văn D](doctor_name)
+      - bác sĩ [Nguyễn Văn A](doctor_name) thông tin
+
+  # ==================================== Tra cứu thông tin chuyên khoa =============================================================
+  - intent: explain_specialty
+    examples: |
+      - chuyên khoa [tim mạch](specialty) chữa bệnh gì
+      - hãy giải thích chuyên khoa [nhi](specialty)
+      - tôi muốn biết chuyên khoa [da liễu](specialty) chữa gì
+      - chuyên khoa [nội tổng quát](specialty) là gì
+      - tôi muốn bạn giải thích chuyên khoa [thần kinh](specialty)
+      - chuyên khoa [nội khoa](specialty) là gì
+      - chuyên khoa [ngoại khoa](specialty) là làm cái gì
+      - chuyên khoa [phụ sản](specialty) là làm cái gì trong đó
+      - giải thích chuyên khoa [răng hàm mặt](specialty) giúp tôi
+      - tôi muốn bạn giải thích chuyên khoa [tai mũi họng](specialty)
+      - tôi cần bạn giải thích chuyên khoa [mắt](specialty)
+      - giải thích giúp tôi chuyên khoa [xương khớp](specialty) với
+      - khoa [tiêu hóa](specialty) là gì
+      - khoa [hô hấp](specialty) chữa bệnh gì
+      - giải thích [tim mạch](specialty) chuyên khoa
   - intent: affirm
     examples: |
       - có

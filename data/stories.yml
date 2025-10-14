@@ -62,3 +62,48 @@ stories:
       - action: action_book_appointment
       - intent: affirm
       - action: utter_confirm
+
+  # ================================ Tra cứu thông tin bác sĩ =============================================================
+  - story: happy path search doctor info
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_doctor_info
+      #   - action: action_set_current_task
+      #   - slot_was_set:
+      #       - current_task: search_doctor_info
+      - action: utter_doctor_info
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      - action: action_search_doctor
+      - intent: affirm
+      - action: utter_confirm
+
+      # ================================ Giải thích chuyên khoa =============================================================
+  #   - story: happy path explain specialty
+  #     steps:
+  #       - intent: greet
+  #       - action: utter_greet
+  #       - intent: explain_specialty
+  #       #   - action: action_set_current_task
+  #       #   - slot_was_set:
+  #       #       - current_task: explain_specialty
+  #       - action: utter_explain_specialty
+  #       - intent: provide_specialty
+  #       - slot_was_set:
+  #           - specialty: nhi
+  #       - action: action_search_specialty
+  #       - intent: affirm
+  #       - action: utter_confirm
+
+  - story: happy path explain specialty 1
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: explain_specialty
+      - slot_was_set:
+          - specialty: nhi
+      - action: action_search_specialty
+      - intent: affirm
+      - action: utter_confirm

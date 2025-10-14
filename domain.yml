@@ -15,6 +15,10 @@ intents:
   - provide_time
   - provide_date
 
+  - search_doctor_info
+
+  - explain_specialty
+
 entities:
   - symptom
   - specialty
@@ -164,8 +168,10 @@ responses:
           payload: "/request_doctor"
         - title: "Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "Xem thông tin phòng khám"
-          payload: "/clinic_info"
+        - title: "Tra cứu thông tin bác sĩ"
+          payload: "/search_doctor_info"
+        - title: "Tìm hiểu chuyên khoa"
+          payload: "/explain_specialty"
 
   utter_goodbye:
     - text: "Tạm biệt! Chúc bạn sức khỏe."
@@ -177,12 +183,18 @@ responses:
     - text: "Bạn muốn khám chuyên khoa nào? Vui lòng chọn hoặc nhập tên chuyên khoa."
   #   # Nút bấm sẽ được gửi từ validate_specialty trong actions.py
 
+  utter_explain_specialty:
+    - text: "Bạn muốn tìm hiểu về chuyên khoa nào? Vui lòng nhập tên chuyên khoa."
+
   utter_specialty_not_found:
     - text: "Chuyên khoa '{specialty}' không hợp lệ hoặc không có sẵn. Vui lòng chọn từ danh sách sau hoặc nhập lại:"
 
   utter_ask_doctor_name:
     - text: "Bạn muốn khám với bác sĩ nào? Vui lòng chọn hoặc nhập tên bác sĩ."
   # Nút bấm sẽ được gửi từ validate_doctor_name trong actions.py
+
+  utter_doctor_info:
+    - text: "Bạn muốn tra cứu thông tin bác sĩ nào? Vui lòng nhập tên bác sĩ."
 
   utter_ask_appointment_time:
     - text: "Bạn muốn đặt lịch vào thời gian nào? Vui lòng cho biết thời gian cụ thể."
@@ -231,6 +243,9 @@ actions:
   - action_set_current_task
   - validate_book_appointment_form
   - action_book_appointment
+  - action_search_doctor
+  - action_view_doctor_detail
+  - action_search_specialty
 
 session_config:
   session_expiration_time: 60

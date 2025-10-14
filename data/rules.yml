@@ -38,7 +38,6 @@ rules:
       - action: book_appointment_form
       - active_loop: null
       - action: action_book_appointment
-  # ================================================================
 
   - rule: greet
     steps:

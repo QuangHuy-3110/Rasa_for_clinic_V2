@@ -123,7 +123,8 @@ class ActionRecommendDoctor(Action):
 
         return [SlotSet("specialty_suggested", suggested_specialty),
                 SlotSet("current_task", None),
-                SlotSet("symptoms", None)]
+                SlotSet("symptoms", None),
+                SlotSet("decription", None)]
 
 class ValidateBookAppointmentForm(FormValidationAction):
     def name(self) -> Text:
@@ -329,7 +330,181 @@ class ActionBookAppointment(Action):
                 {"title": "Hủy", "payload": "/deny"}
             ]
         )
+        return [SlotSet("current_task", None),
+                SlotSet("doctor_name", None),
+                SlotSet("specialty", None),
+                SlotSet("date", None),
+                SlotSet("appointment_time", None),
+                SlotSet("decription", None)]
+
+# Phần mới: Tra cứu thông tin bác sĩ
+class ActionSearchDoctor(Action):
+    def name(self) -> Text:
+        return "action_search_doctor"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        doctor_name_search = tracker.get_slot("doctor_name")  # Reuse doctor_name slot for search
+        if not doctor_name_search:
+            dispatcher.utter_message(text="Không nhận được tên bác sĩ để tra cứu. Hãy thử lại.")
+            return [SlotSet("doctor_name", None)]
+
+        # Query MySQL để tìm bác sĩ matching tên (LIKE %name%)
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS
+            FROM bacsi bs
+            JOIN chuyenmon cm ON bs.maBS = cm.maBS
+            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+            WHERE bs.tenBS LIKE %s
+            """
+            cursor.execute(query, (f"%{doctor_name_search}%",))
+            doctors = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return [SlotSet("doctor_name", None)]
+
+        if not doctors:
+            dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào có tên chứa '{doctor_name_search}'. Hãy thử tên khác.")
+            return [SlotSet("doctor_name", None)]
+
+        # Tạo messages cho danh sách bác sĩ (cards với buttons xem chi tiết)
+        dispatcher.utter_message(text=f"Tìm thấy {len(doctors)} bác sĩ phù hợp với '{doctor_name_search}':")
+        for doc in doctors:
+            doc_card = f"""
+            🩺 **Bác sĩ {doc['tenBS']}**
+            - Chuyên khoa: {doc['tenCK']}
+            - SĐT: {doc['sdtBS']}
+            """
+            dispatcher.utter_message(
+                text=doc_card,
+                buttons=[
+                    {
+                        "title": "Xem chi tiết",
+                        "payload": f"/view_doctor_detail{{\"doctor_id\":\"{doc['maBS']}\"}}"
+                    }
+                ]
+            )
+
+        return [SlotSet("current_task", None),
+                SlotSet("doctor_name", None)]
+
+class ActionViewDoctorDetail(Action):
+    def name(self) -> Text:
+        return "action_view_doctor_detail"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        # Lấy doctor_id từ latest_message entities (giả sử NLU extract entity doctor_id từ payload)
+        entities = tracker.latest_message.get('entities', [])
+        doctor_id = next((e['value'] for e in entities if e['entity'] == 'doctor_id'), None)
+        
+        if not doctor_id:
+            dispatcher.utter_message(text="Không nhận được ID bác sĩ. Hãy thử lại.")
+            return []
+
+        # Query MySQL để lấy chi tiết bác sĩ theo maBS (thêm fields nếu có: email, kinhnghiem, dia_chi, etc.)
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS
+            FROM bacsi bs
+            JOIN chuyenmon cm ON bs.maBS = cm.maBS
+            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+            WHERE bs.maBS = %s
+            """
+            cursor.execute(query, (doctor_id,))
+            doctor = cursor.fetchone()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return []
+
+        if not doctor:
+            dispatcher.utter_message(text="Không tìm thấy thông tin bác sĩ.")
+            return []
+
+        # Utter chi tiết
+        detail_text = f"""
+        📋 **Chi tiết Bác sĩ {doctor['tenBS']}**
+        - Mã BS: {doctor['maBS']}
+        - Chuyên khoa: {doctor['tenCK']}
+        - SĐT: {doctor['sdtBS']}
+        - Email: {doctor.get('email', 'Chưa có thông tin')}
+        - Kinh nghiệm: 20 năm
+        - Các dịch vụ khác: Tư vấn và khám chuyên sâu về {doctor['tenCK']}.
+
+        Bạn có muốn đặt lịch với bác sĩ này không?
+        """
+        buttons = [
+            {"title": "Đặt lịch", "payload": f"/book_appointment"},
+            {"title": "Tìm bác sĩ khác", "payload": "/search_doctor_info"}
+        ]
+        dispatcher.utter_message(text=detail_text, buttons=buttons)
+
         return []
+
+class ActionSearchSpecialty(Action):
+    def name(self) -> Text:
+        return "action_search_specialty"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        specialty = tracker.get_slot("specialty")
+        if not specialty:
+            dispatcher.utter_message(text="Vui lòng nhập tên chuyên khoa bạn muốn tra cứu.")
+            return [SlotSet("specialty", None)]
+
+        # Query MySQL để lấy mô tả chuyên khoa (giả sử bảng chuyenkhoa có field 'mo_ta' chứa giải thích bệnh chữa)
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT tenCK, maCK
+            FROM chuyenkhoa
+            WHERE tenCK = %s
+            """
+            cursor.execute(query, (specialty,))
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return [SlotSet("specialty", None)]
+
+        if not result:
+            dispatcher.utter_message(
+                text=f"Không tìm thấy thông tin về chuyên khoa '{specialty}'. Vui lòng thử tên khác.",
+                buttons=[
+                    {"title": "Quay lại menu", "payload": "/greet"}
+                ]
+            )
+            return [SlotSet("specialty", None)]
+
+        # Hiển thị giải thích
+        explanation = result['maCK'] or f"Chuyên khoa {specialty} chuyên chữa các bệnh liên quan đến {specialty.lower()}."
+        message_text = f"""
+        📋 **Thông tin chuyên khoa {specialty}**
+        {explanation}
+
+        Bạn có muốn tra cứu chuyên khoa khác không?
+        """
+        buttons = [
+            {"title": "Tra cứu khác", "payload": "/search_specialty"},
+            {"title": "Quay lại menu", "payload": "/greet"}
+        ]
+        dispatcher.utter_message(text=message_text, buttons=buttons)
+
+        return [SlotSet("specialty", None)]
 
 class ActionSetCurrentTask(Action):
     def name(self) -> Text:
@@ -341,4 +516,6 @@ class ActionSetCurrentTask(Action):
             return [SlotSet("current_task", "request_doctor")]
         elif intent == 'book_appointment':
             return [SlotSet("current_task", "book_appointment")]
+        elif intent == 'search_doctor_info':
+            return [SlotSet("current_task", "search_doctor_info")]
         return []
