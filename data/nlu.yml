@@ -122,6 +122,19 @@ nlu:
       - vấn đề của tôi là [đau đầu](symptom)
       - tôi đang gặp phải [sốt](symptom)
       - triệu chứng là [đau bụng](symptom)
+
+  - intent: book_with_doctor
+    examples: |
+      - /book_with_doctor{"doctor_id":"[BS0001](doctor_id)"}
+      - đặt lịch với [BS0001](doctor_id)
+      - chọn bác sĩ [BS0002](doctor_id)
+      - book with [BS0003](doctor_id)
+      - {"doctor_id":"[BS0004](doctor_id)"}  # Fallback cho JSON raw
+      - đặt lịch với bác sĩ [BS001](doctor_id)
+      - chọn [BS002](doctor_id) để đặt lịch
+      - tôi muốn book với [BS003](doctor_id)
+      - [doctor_id](doctor_id)
+
   # ==================================== Đặt lịch =============================================================
   - intent: book_appointment
     examples: |
@@ -281,6 +294,29 @@ nlu:
       - khoa [tiêu hóa](specialty) là gì
       - khoa [hô hấp](specialty) chữa bệnh gì
       - giải thích [tim mạch](specialty) chuyên khoa
+
+  # ==================================== Hủy lịch khám =============================================================
+  - intent: select_appointment
+    examples: |
+      - chọn lịch [LH001](appointment_id)
+      - select appointment with id [LH002](appointment_id)
+      - hủy lịch [LH003](appointment_id)
+
+  - intent: cancel_appointment
+    examples: |
+      - tôi muốn hủy lịch khám
+      - chọn hủy lịch khám
+      - hủy lịch khám
+      - hủy lịch khám giúp tôi
+      - tôi cần hủy lịch khám
+      - tôi muốn bạn hủy lịch khám giúp tôi
+      - tôi cần bạn hủy lịch khám giúp tôi
+      - tôi muốn bạn giúp tôi hủy lịch khám
+      - tôi cần bạn giúp tôi hủy lịch khám
+      - tôi muốn bạn hỗ trợ tôi hủy lịch khám
+      - tôi cần bạn hỗ trợ tôi hủy lịch khám
+      - hỗ trợ tôi hủy lịch khám với
+      - giúp tôi hủy lịch khám với
   - intent: affirm
     examples: |
       - có

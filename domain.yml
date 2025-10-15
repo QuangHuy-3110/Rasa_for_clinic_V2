@@ -7,17 +7,17 @@ intents:
   - affirm
   - deny
   - provide_medical_info
-
+  - book_with_doctor
   - book_appointment
   - provide_decription
   - provide_specialty
   - choose_doctor_name
   - provide_time
   - provide_date
-
   - search_doctor_info
-
   - explain_specialty
+  - cancel_appointment
+  - select_appointment
 
 entities:
   - symptom
@@ -27,6 +27,8 @@ entities:
   - decription
   - date
   - time
+  - appointment_id
+  - doctor_id
 
 slots:
   symptoms:
@@ -36,12 +38,19 @@ slots:
       - type: from_entity
         entity: symptom
 
+  doctor_id:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: custom
+
   current_task:
     type: categorical
     influence_conversation: true
     values:
       - request_doctor
       - book_appointment
+      - cancel_appointment
     mappings:
       - type: custom # Set qua custom action
 
@@ -49,6 +58,21 @@ slots:
     type: text
     influence_conversation: true
     mappings:
+      - type: custom
+
+  appointment_date:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: date # Hoặc from_text nếu nhập text ngày
+      - type: custom
+
+  prescription_date:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
       - type: custom
 
   # Điều chỉnh mappings để ưu tiên entity từ payload và hạn chế from_text khi form active
@@ -76,6 +100,7 @@ slots:
           - provide_decription
           - provide_medical_info # THÊM: Block khi input y tế để tránh overwrite
           - choose_doctor_name # Không lấy tên bác sĩ từ text nếu người dùng vừa bấm nút chọn bác sĩ
+          - book_with_doctor
 
   appointment_time:
     type: text
@@ -99,6 +124,7 @@ slots:
           - provide_decription
           - provide_medical_info # THÊM: Block khi input y tế
           - provide_time # Tránh lấy từ payload nếu là nút 'provide_time' không có entity
+          - book_with_doctor
       - type: custom
 
   decription:
@@ -137,6 +163,7 @@ slots:
           - provide_decription
           - provide_medical_info # THÊM: Block khi input y tế
           - provide_specialty # Không lấy chuyên khoa từ text nếu người dùng vừa bấm nút chọn chuyên khoa
+          - book_with_doctor
 
   date:
     type: text
@@ -158,7 +185,16 @@ slots:
           - provide_decription
           - provide_medical_info # THÊM: Block khi input y tế
           - provide_date # Tránh lấy từ payload nếu là nút 'provide_date' không có entity
+          - book_with_doctor
       - type: custom
+
+  selected_appointment_id:
+    type: text # Lưu ID dưới dạng string (ví dụ: "LH001")
+    influence_conversation: false # Không ảnh hưởng policy (chỉ tạm thời)
+    mappings:
+      - type: from_entity # Extract từ entity appointment_id trong payload
+        entity: appointment_id
+      - type: custom # Set từ action (như SlotSet trong ActionConfirmCancel)
 
 responses:
   utter_greet:
@@ -172,6 +208,8 @@ responses:
           payload: "/search_doctor_info"
         - title: "Tìm hiểu chuyên khoa"
           payload: "/explain_specialty"
+        - title: "Hủy lịch hẹn"
+          payload: "/cancel_appointment"
 
   utter_goodbye:
     - text: "Tạm biệt! Chúc bạn sức khỏe."
@@ -224,6 +262,93 @@ responses:
   utter_appointment_cancelled:
     - text: "Bạn đã hủy đặt lịch hẹn."
 
+  # Added missing responses for completeness
+  utter_default_error:
+    - text: "Có lỗi xảy ra. Vui lòng thử lại sau."
+
+  utter_recommend_doctor_no_doctors:
+    - text: "Không tìm thấy bác sĩ phù hợp với triệu chứng của bạn. Vui lòng thử mô tả khác."
+
+  utter_recommend_doctor_success:
+    - text: "Dựa trên triệu chứng, tôi gợi ý chuyên khoa: {specialty_suggested}."
+
+  utter_validate_date_wrong_input:
+    - text: "Thông tin bạn nhập không phải ngày tháng. Vui lòng nhập đúng định dạng DD/MM/YYYY."
+
+  utter_validate_date_invalid:
+    - text: "Định dạng ngày không hợp lệ. Vui lòng nhập DD/MM/YYYY."
+
+  utter_validate_date_past:
+    - text: "Không thể đặt lịch trong quá khứ. Vui lòng chọn ngày trong tương lai."
+
+  utter_validate_time_wrong_input:
+    - text: "Thông tin bạn nhập không phải thời gian. Vui lòng nhập HH:MM."
+
+  utter_validate_time_invalid:
+    - text: "Định dạng thời gian không hợp lệ. Vui lòng nhập HH:MM."
+
+  utter_validate_time_outside_hours:
+    - text: "Thời gian phải từ 8:00 đến 17:00. Vui lòng chọn giờ hợp lệ."
+
+  utter_validate_decription_wrong_input:
+    - text: "Thông tin bạn nhập không phải mô tả bệnh. Vui lòng mô tả chi tiết tình trạng."
+
+  utter_validate_decription_short:
+    - text: "Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết (ít nhất 5 từ)."
+
+  utter_doctor_not_found:
+    - text: "Không tìm thấy bác sĩ '{doctor_name}' trong chuyên khoa {specialty}. Vui lòng chọn từ danh sách:"
+
+  utter_search_doctor:
+    - text: "Vui lòng nhập tên bác sĩ bạn muốn tra cứu."
+
+  utter_search_doctor_no_results:
+    - text: "Không tìm thấy bác sĩ '{doctor_name}'."
+
+  utter_search_doctor_results:
+    - text: "Kết quả tra cứu cho '{doctor_name}':"
+
+  utter_specialty_info:
+    - text: "Chuyên khoa {specialty}: {explanation}"
+
+  utter_ask_cancel_date:
+    - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (DD/MM/YYYY)."
+
+  utter_cancel_no_appointments:
+    - text: "Không có lịch hẹn nào trong ngày {appointment_date}."
+
+  utter_cancel_list:
+    - text: "Danh sách lịch hẹn ngày {appointment_date}:"
+
+  utter_confirm_cancel:
+    - text: "Bạn có chắc muốn hủy lịch hẹn {selected_appointment_id} không?"
+      buttons:
+        - title: "Có"
+          payload: "/affirm"
+        - title: "Không"
+          payload: "/deny"
+
+  utter_cancel_success:
+    - text: "Đã hủy lịch hẹn thành công."
+
+  utter_cancel_error:
+    - text: "Có lỗi khi hủy lịch hẹn. Vui lòng thử lại."
+
+  utter_reset_booking:
+    - text: "Đã hủy yêu cầu đặt lịch. Bạn có thể bắt đầu lại."
+
+  utter_reset_cancel:
+    - text: "Đã hủy hành động hủy lịch. Lịch hẹn vẫn giữ nguyên."
+
+  utter_booking_success:
+    - text: "Đặt lịch thành công! Cảm ơn bạn."
+
+  utter_booking_error:
+    - text: "Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại."
+
+  utter_booking_incomplete:
+    - text: "Thông tin đặt lịch chưa đầy đủ. Vui lòng kiểm tra lại."
+
 forms:
   recommend_doctor_form:
     required_slots:
@@ -240,12 +365,20 @@ forms:
 actions:
   - action_recommend_doctor
   - validate_recommend_doctor_form
+  - action_book_with_doctor
   - action_set_current_task
   - validate_book_appointment_form
   - action_book_appointment
   - action_search_doctor
   - action_view_doctor_detail
   - action_search_specialty
+  - action_cancel_appointment
+  - action_confirm_cancel
+  - action_perform_cancel
+  - action_search_prescription
+  - action_submit_booking
+  - action_reset_booking
+  - action_reset_cancel
 
 session_config:
   session_expiration_time: 60

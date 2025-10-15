@@ -8,6 +8,7 @@ from mysql.connector import Error
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import re  # Thêm để parse payload fallback
 
 # Load file .env
 load_dotenv()
@@ -31,6 +32,9 @@ WRONG_INPUT_KEYWORDS = {
     'appointment_time': ['đau', 'bệnh', 'ngày', 'đau bụng', 'sáng'],
     'decription': ['ngày', 'thời gian', 'bác sĩ', 'chuyên khoa']
 }
+
+# Global variable cho mã bệnh nhân (có thể set động từ slot hoặc config sau)
+MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
 
 class ValidateRecommendDoctorForm(FormValidationAction):
     def name(self) -> Text:
@@ -110,21 +114,93 @@ class ActionRecommendDoctor(Action):
             dispatcher.utter_message(text="Rất tiếc, không tìm thấy bác sĩ phù hợp.")
             return [SlotSet("specialty_suggested", None)]
 
-        messages = [{"text": f"Dựa trên triệu chứng, tôi đề xuất chuyên khoa {suggested_specialty}. Dưới đây là danh sách bác sĩ phù hợp:"}]
+        dispatcher.utter_message(text=f"Dựa trên triệu chứng, tôi đề xuất chuyên khoa {suggested_specialty}. Dưới đây là danh sách bác sĩ phù hợp:")
         for doc in doctors:
             doc_card = f"🩺 **Bác sĩ {doc['tenBS']}** - Chuyên khoa: {doc['tenCK']} - Kinh nghiệm: 10 năm - Liên hệ: {doc['sdtBS']}"
-            messages.append({
-                "text": doc_card,
-                "buttons": [{"title": "Đặt lịch", "payload": f"book_with_{doc['maBS']}"}]
-            })
-
-        for msg in messages:
-            dispatcher.utter_message(**msg)
+            dispatcher.utter_message(
+                text=doc_card,
+                buttons=[{
+                    "title": "Đặt lịch", 
+                    "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
+                }]
+            )
 
         return [SlotSet("specialty_suggested", suggested_specialty),
                 SlotSet("current_task", None),
                 SlotSet("symptoms", None),
                 SlotSet("decription", None)]
+
+class ActionBookWithDoctor(Action):
+    def name(self) -> Text:
+        return "action_book_with_doctor"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        # Extract entities từ latest_message
+        entities = tracker.latest_message.get('entities', [])
+        doctor_id = next((e['value'] for e in entities if e['entity'] == 'doctor_id'), None)
+        specialty = next((e['value'] for e in entities if e['entity'] == 'specialty'), None)
+        
+        # Fallback parse thủ công nếu entity fail (từ text payload)
+        if not doctor_id or not specialty:
+            text = tracker.latest_message.get('text', '')
+            match = re.search(r'"doctor_id":"(BS\d+)"\s*,\s*"specialty":"([^"]+)"', text)
+            if match:
+                doctor_id, specialty = match.groups()
+
+        if not doctor_id:
+            dispatcher.utter_message(text="Không nhận được ID bác sĩ từ lựa chọn. Hãy thử lại.")
+            return []
+
+        # Query DB lấy tenBS và verify specialty
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT tenBS, ck.tenCK as specialty 
+            FROM bacsi bs 
+            JOIN chuyenmon cm ON bs.maBS = cm.maBS 
+            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
+            WHERE bs.maBS = %s
+            """
+            cursor.execute(query, (doctor_id,))
+            doctor = cursor.fetchone()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return []
+
+        if not doctor:
+            dispatcher.utter_message(text="Không tìm thấy bác sĩ với ID này.")
+            return []
+
+        doctor_name = doctor['tenBS']
+        final_specialty = specialty or doctor['specialty'] or tracker.get_slot("specialty_suggested")
+
+        # RESET slots lộn xộn trước (bao gồm date, time, decription)
+        events = [
+            SlotSet("doctor_name", None),
+            SlotSet("specialty", None),
+            SlotSet("date", None),
+            SlotSet("appointment_time", None),
+            SlotSet("decription", None)
+        ]
+        
+        # Set đúng
+        events += [
+            SlotSet("doctor_name", doctor_name),
+            SlotSet("specialty", final_specialty),
+            SlotSet("current_task", "book_appointment")
+        ]
+        
+        # Utter xác nhận
+        dispatcher.utter_message(
+            text=f"Bạn đã chọn đặt lịch với bác sĩ **{doctor_name}** (chuyên khoa {final_specialty}). Bây giờ, hãy cung cấp ngày hẹn (DD/MM/YYYY)."
+        )
+        
+        return events
 
 class ValidateBookAppointmentForm(FormValidationAction):
     def name(self) -> Text:
@@ -213,15 +289,17 @@ class ValidateBookAppointmentForm(FormValidationAction):
         }
 
         # Debug log (bỏ sau khi test)
-        print(f"[DEBUG] Slots before re-set: {dict(tracker.slots)}")
-        print(f"[DEBUG] Re-setting slots: {slot_values}")
+        # print(f"[DEBUG] Slots before re-set: {dict(tracker.slots)}")
+        # print(f"[DEBUG] Re-setting slots: {slot_values}")
 
         # Kiểm tra nếu tất cả required đầy đủ trước khi return
         required_slots = ["date", "specialty", "doctor_name", "appointment_time", "decription"]
         if all(slot_values.get(slot) for slot in required_slots):
-            print("[DEBUG] All slots full, form will submit.")
+            # print("[DEBUG] All slots full, form will submit.")
+            pass
         else:
-            print("[DEBUG] Some slots still None, form will continue.")
+            # print("[DEBUG] Some slots still None, form will continue.")
+            pass
 
         return slot_values  # Return dict với tất cả để re-set
 
@@ -249,8 +327,10 @@ class ValidateBookAppointmentForm(FormValidationAction):
             return {"specialty": None}
 
         if specialty_input not in specialties:
-            buttons = [{"title": s.title(), "payload": f"/provide_specialty{{\"specialty\":\"{s}\"}}"} for s in specialties[:5]]
-            dispatcher.utter_message(text=f"Chuyên khoa '{slot_value}' không có. Vui lòng chọn:", buttons=buttons)
+            dispatcher.utter_message(text=f"Chuyên khoa '{slot_value}' không có. Các chuyên khoa có sẵn:")
+            for s in specialties[:5]:
+                dispatcher.utter_message(text=f"- {s.title()}")
+            dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
             return {"specialty": None}
 
         return {"specialty": slot_value.title()}
@@ -292,18 +372,15 @@ class ValidateBookAppointmentForm(FormValidationAction):
 
         matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
         if not matched:
-            dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Hãy chọn:")
+            dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Các bác sĩ có sẵn:")
             for doc in doctors[:3]:
-                dispatcher.utter_message(
-                    text=f"🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})",
-                    buttons=[{"title": f"Chọn {doc['tenBS']}", "payload": f"/choose_doctor_name{{\"doctor_name\":\"{doc['tenBS']}\"}}"}]
-                )
+                dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
+            dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
             return {"doctor_name": None}
 
         doc = matched[0]
         dispatcher.utter_message(
-            text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}",
-            buttons=[{"title": "Xác nhận", "payload": f"/choose_doctor_name{{\"doctor_name\":\"{doc['tenBS']}\"}}"}]
+            text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
         )
         return {"doctor_name": doc["tenBS"]}
 
@@ -330,12 +407,7 @@ class ActionBookAppointment(Action):
                 {"title": "Hủy", "payload": "/deny"}
             ]
         )
-        return [SlotSet("current_task", None),
-                SlotSet("doctor_name", None),
-                SlotSet("specialty", None),
-                SlotSet("date", None),
-                SlotSet("appointment_time", None),
-                SlotSet("decription", None)]
+        return []  # Không reset ngay, chờ affirm/deny qua rules
 
 # Phần mới: Tra cứu thông tin bác sĩ
 class ActionSearchDoctor(Action):
@@ -373,22 +445,16 @@ class ActionSearchDoctor(Action):
             dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào có tên chứa '{doctor_name_search}'. Hãy thử tên khác.")
             return [SlotSet("doctor_name", None)]
 
-        # Tạo messages cho danh sách bác sĩ (cards với buttons xem chi tiết)
         dispatcher.utter_message(text=f"Tìm thấy {len(doctors)} bác sĩ phù hợp với '{doctor_name_search}':")
         for doc in doctors:
             doc_card = f"""
-            🩺 **Bác sĩ {doc['tenBS']}**
-            - Chuyên khoa: {doc['tenCK']}
-            - SĐT: {doc['sdtBS']}
+                - 🩺 **Bác sĩ {doc['tenBS']}**
+                - Chuyên khoa: {doc['tenCK']}
+                - SĐT: {doc['sdtBS']}
             """
             dispatcher.utter_message(
                 text=doc_card,
-                buttons=[
-                    {
-                        "title": "Xem chi tiết",
-                        "payload": f"/view_doctor_detail{{\"doctor_id\":\"{doc['maBS']}\"}}"
-                    }
-                ]
+                buttons=[{"title": "Xem chi tiết", "payload": f"/view_doctor_detail{{\"doctor_id\":\"{doc['maBS']}\"}}"}]
             )
 
         return [SlotSet("current_task", None),
@@ -438,14 +504,14 @@ class ActionViewDoctorDetail(Action):
         - Mã BS: {doctor['maBS']}
         - Chuyên khoa: {doctor['tenCK']}
         - SĐT: {doctor['sdtBS']}
-        - Email: {doctor.get('email', 'Chưa có thông tin')}
+        - Email: {doctor.get('emailBS', 'Chưa có thông tin')}
         - Kinh nghiệm: 20 năm
         - Các dịch vụ khác: Tư vấn và khám chuyên sâu về {doctor['tenCK']}.
 
         Bạn có muốn đặt lịch với bác sĩ này không?
         """
         buttons = [
-            {"title": "Đặt lịch", "payload": f"/book_appointment"},
+            {"title": "Đặt lịch", "payload": "/book_appointment"},
             {"title": "Tìm bác sĩ khác", "payload": "/search_doctor_info"}
         ]
         dispatcher.utter_message(text=detail_text, buttons=buttons)
@@ -469,7 +535,7 @@ class ActionSearchSpecialty(Action):
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
             query = """
-            SELECT tenCK, maCK
+            SELECT tenCK, mo_ta
             FROM chuyenkhoa
             WHERE tenCK = %s
             """
@@ -491,7 +557,7 @@ class ActionSearchSpecialty(Action):
             return [SlotSet("specialty", None)]
 
         # Hiển thị giải thích
-        explanation = result['maCK'] or f"Chuyên khoa {specialty} chuyên chữa các bệnh liên quan đến {specialty.lower()}."
+        explanation = result.get('mo_ta', f"Chuyên khoa {specialty} chuyên chữa các bệnh liên quan đến {specialty.lower()}.")
         message_text = f"""
         📋 **Thông tin chuyên khoa {specialty}**
         {explanation}
@@ -499,12 +565,292 @@ class ActionSearchSpecialty(Action):
         Bạn có muốn tra cứu chuyên khoa khác không?
         """
         buttons = [
-            {"title": "Tra cứu khác", "payload": "/search_specialty"},
+            {"title": "Tra cứu khác", "payload": "/explain_specialty"},
             {"title": "Quay lại menu", "payload": "/greet"}
         ]
         dispatcher.utter_message(text=message_text, buttons=buttons)
 
         return [SlotSet("specialty", None)]
+
+class ActionCancelAppointment(Action):
+    def name(self) -> Text:
+        return "action_cancel_appointment"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        SlotSet("current_task", "cancel_appointment")  # Set context
+        appointment_date = tracker.get_slot("appointment_date")
+        if not appointment_date:
+            dispatcher.utter_message(
+                text="Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY).",
+                buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
+            )
+            return [SlotSet("appointment_date", None)]
+
+        # Parse ngày (giả sử format %d/%m/%Y)
+        try:
+            parsed_date = datetime.strptime(appointment_date, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+            return [SlotSet("appointment_date", None)]
+
+        # Query MySQL: Lấy danh sách lịch hẹn của maBN trong ngày đó (trang_thai != 'hủy')
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT lh.maLH, lh.ngaythangnam, lh.khunggio, bs.tenBS
+            FROM lichhen lh
+            JOIN bacsi bs ON lh.maBS = bs.maBS
+            WHERE lh.maBN = %s AND DATE(lh.ngaythangnam) = %s AND lh.trangthai != 'hủy'
+            ORDER BY lh.khunggio
+            """
+            cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+            appointments = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return [SlotSet("appointment_date", None)]
+
+        if not appointments:
+            dispatcher.utter_message(text=f"Không có lịch hẹn nào trong ngày {appointment_date}.")
+            buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
+            dispatcher.utter_message(text="Bạn có muốn hủy ngày khác không?", buttons=buttons)
+            return [SlotSet("appointment_date", None)]
+
+        # Hiển thị danh sách với buttons chọn
+        dispatcher.utter_message(text=f"Danh sách lịch hẹn ngày {appointment_date}:")
+        for appt in appointments:
+            appt_text = f"🩺 Bác sĩ {appt['tenBS']} - Giờ: {appt['khunggio']}"
+            dispatcher.utter_message(
+                text=appt_text,
+                buttons=[
+                    {
+                        "title": f"Chọn lịch {appt['khunggio']}",
+                        "payload": f"/select_appointment{{\"appointment_id\":\"{appt['maLH']}\"}}"
+                    }
+                ]
+            )
+
+        return [SlotSet("appointment_date", None)]
+
+class ActionConfirmCancel(Action):
+    def name(self) -> Text:
+        return "action_confirm_cancel"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        # Lấy maLH từ latest_message entities (từ payload chọn)
+        entities = tracker.latest_message.get('entities', [])
+        selected_id = next((e['value'] for e in entities if e['entity'] == 'appointment_id'), None)
+        
+        if not selected_id:
+            dispatcher.utter_message(text="Không nhận được lịch hẹn để hủy. Hãy thử lại.")
+            return []
+
+        # Xác nhận hủy
+        dispatcher.utter_message(
+            text=f"Bạn có chắc muốn hủy lịch hẹn ID {selected_id}?",
+            buttons=[
+                {"title": "Xác nhận hủy", "payload": "/affirm"},
+                {"title": "Hủy bỏ", "payload": "/deny"}
+            ]
+        )
+        return [SlotSet("selected_appointment_id", selected_id)]
+
+class ActionPerformCancel(Action):
+    def name(self) -> Text:
+        return "action_perform_cancel"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        selected_id = tracker.get_slot("selected_appointment_id")
+        if not selected_id:
+            dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
+            return []
+
+        # Update DB: Set trang_thai = 'hủy'
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = "UPDATE lichhen SET trangthai = 'hủy' WHERE maLH = %s AND maBN = %s"
+            cursor.execute(query, (selected_id, MA_BN_GLOBAL))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            if cursor.rowcount > 0:
+                dispatcher.utter_message(text=f"Đã hủy thành công lịch hẹn ID {selected_id}.")
+            else:
+                dispatcher.utter_message(text="Không tìm thấy lịch hẹn để hủy.")
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi cập nhật DB: {e}")
+
+        buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
+        dispatcher.utter_message(text="Bạn có muốn hủy lịch khác không?", buttons=buttons)
+        return [SlotSet("selected_appointment_id", None),
+                SlotSet("current_task", None)]
+
+class ActionSearchPrescription(Action):
+    def name(self) -> Text:
+        return "action_search_prescription"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        prescription_date = tracker.get_slot("prescription_date")
+        if not prescription_date:
+            dispatcher.utter_message(
+                text="Vui lòng nhập ngày bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).",
+                buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
+            )
+            return [SlotSet("prescription_date", None)]
+
+        # Parse ngày
+        try:
+            parsed_date = datetime.strptime(prescription_date, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+            return [SlotSet("prescription_date", None)]
+
+        # Query MySQL: Lấy toa thuốc của maBN trong ngày đó
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT maTT, ngay_ke, noi_dung_toa
+            FROM toa_thuoc
+            WHERE maBN = %s AND DATE(ngay_ke) = %s
+            ORDER BY ngay_ke
+            """
+            cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+            prescriptions = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return [SlotSet("prescription_date", None)]
+
+        if not prescriptions:
+            dispatcher.utter_message(text=f"Không có toa thuốc nào trong ngày {prescription_date}.")
+            buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
+            dispatcher.utter_message(text="Bạn có muốn tra cứu ngày khác không?", buttons=buttons)
+            return [SlotSet("prescription_date", None)]
+
+        # Hiển thị danh sách toa thuốc
+        dispatcher.utter_message(text=f"Toa thuốc ngày {prescription_date}:")
+        for rx in prescriptions:
+            rx_text = f"📋 Toa thuốc ID {rx['maTT']} - Ngày kê: {rx['ngay_ke']}\nNội dung: {rx['noi_dung_toa']}"
+            dispatcher.utter_message(text=rx_text)
+
+        buttons = [{"title": "Tra cứu ngày khác", "payload": "/search_prescription"}, {"title": "Quay lại menu", "payload": "/greet"}]
+        dispatcher.utter_message(text="Bạn có muốn tra cứu thêm không?", buttons=buttons)
+
+        return [SlotSet("prescription_date", None)]
+
+class ActionSubmitBooking(Action):
+    def name(self) -> Text:
+        return "action_submit_booking"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict]:
+        doctor_name = tracker.get_slot("doctor_name")
+        specialty = tracker.get_slot("specialty")
+        date_str = tracker.get_slot("date")
+        appointment_time = tracker.get_slot("appointment_time")
+        decription = tracker.get_slot("decription")
+
+        if not all([doctor_name, specialty, date_str, appointment_time, decription]):
+            dispatcher.utter_message(text="Thông tin chưa đầy đủ. Vui lòng hoàn tất form.")
+            return []
+
+        try:
+            parsed_date = datetime.strptime(date_str, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(text="Ngày không hợp lệ.")
+            return []
+
+        # Lấy maBS từ tenBS
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = "SELECT maBS FROM bacsi WHERE tenBS = %s"
+            cursor.execute(query, (doctor_name,))
+            bs_result = cursor.fetchone()
+            if not bs_result:
+                dispatcher.utter_message(text="Không tìm thấy bác sĩ.")
+                cursor.close()
+                conn.close()
+                return []
+            maBS = bs_result['maBS']
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB: {e}")
+            return []
+
+        # Tạo maLH
+        now = datetime.now()
+        maLH = f"LH{now.strftime('%Y%m%d%H%M%S')}"
+
+        # Insert vào DB
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = """
+            INSERT INTO lichhen (maLH, maBN, maBS, ngaythangnam, khunggio, trangthai, mo_ta)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (maLH, MA_BN_GLOBAL, maBS, parsed_date, appointment_time, 'chờ', decription))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            dispatcher.utter_message(text="Đặt lịch thành công! Cảm ơn bạn.")
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi đặt lịch: {e}")
+            return []
+
+        # Reset slots
+        events = [
+            SlotSet("current_task", None),
+            SlotSet("doctor_name", None),
+            SlotSet("specialty", None),
+            SlotSet("date", None),
+            SlotSet("appointment_time", None),
+            SlotSet("decription", None)
+        ]
+        return events
+
+class ActionResetBooking(Action):
+    def name(self) -> Text:
+        return "action_reset_booking"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict]:
+        dispatcher.utter_message(text="Đã hủy yêu cầu đặt lịch. Bạn có thể bắt đầu lại.")
+        events = [
+            SlotSet("current_task", None),
+            SlotSet("doctor_name", None),
+            SlotSet("specialty", None),
+            SlotSet("date", None),
+            SlotSet("appointment_time", None),
+            SlotSet("decription", None)
+        ]
+        return events
+
+class ActionResetCancel(Action):
+    def name(self) -> Text:
+        return "action_reset_cancel"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict]:
+        dispatcher.utter_message(text="Đã hủy hành động hủy lịch. Lịch hẹn vẫn giữ nguyên.")
+        events = [
+            SlotSet("selected_appointment_id", None),
+            SlotSet("current_task", None),
+            SlotSet("appointment_date", None)
+        ]
+        return events
 
 class ActionSetCurrentTask(Action):
     def name(self) -> Text:
@@ -516,6 +862,6 @@ class ActionSetCurrentTask(Action):
             return [SlotSet("current_task", "request_doctor")]
         elif intent == 'book_appointment':
             return [SlotSet("current_task", "book_appointment")]
-        elif intent == 'search_doctor_info':
-            return [SlotSet("current_task", "search_doctor_info")]
+        elif intent == 'cancel_appointment':
+            return [SlotSet("current_task", "cancel_appointment")]
         return []

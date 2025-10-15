@@ -23,6 +23,16 @@ rules:
       - action: action_recommend_doctor
       # - action: utter_recommend_doctor
 
+  # ===================== Đề xuất bác sĩ + đặt lịch khám ============================
+
+  - rule: Activate booking form after select doctor
+    steps:
+      - intent: book_with_doctor
+      - action: action_book_with_doctor # Set slots
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+
   # ===================== Đặt lịch khám ============================
   - rule: Activate book appointment form
     steps:
@@ -38,6 +48,8 @@ rules:
       - action: book_appointment_form
       - active_loop: null
       - action: action_book_appointment
+
+  # ===================== Hủy lịch khám ============================
 
   - rule: greet
     steps:
