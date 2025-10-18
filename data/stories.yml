@@ -10,18 +10,13 @@ stories:
       - action: action_set_current_task
       - slot_was_set:
           - current_task: request_doctor
-
       - action: recommend_doctor_form
       - active_loop: recommend_doctor_form
-      # - action: utter_ask_symptoms
       - intent: provide_medical_info
       - slot_was_set:
           - symptoms: [đau đầu, sốt]
       - active_loop: null
       - action: action_recommend_doctor
-      # - action: utter_recommend_doctor
-    #   - intent: affirm
-    #   - action: utter_confirm
 
   - story: greet without doctor
     steps:
@@ -29,8 +24,9 @@ stories:
       - action: utter_greet
       - intent: goodbye
       - action: utter_goodbye
+
   # ================================ Đề xuất bác sĩ + đặt lịch =============================================================
-  - story: Recomment doctor with book appointment
+  - story: Recommend doctor with book appointment
     steps:
       - intent: greet
       - action: utter_greet
@@ -38,16 +34,13 @@ stories:
       - action: action_set_current_task
       - slot_was_set:
           - current_task: request_doctor
-
       - action: recommend_doctor_form
       - active_loop: recommend_doctor_form
-      # - action: utter_ask_symptoms
       - intent: provide_medical_info
       - slot_was_set:
           - symptoms: [đau đầu, sốt]
       - active_loop: null
       - action: action_recommend_doctor
-      # - action: utter_recommend_doctor
       - intent: book_with_doctor
       - slot_was_set:
           - doctor_id: "BS001"
@@ -57,8 +50,7 @@ stories:
           - current_task: book_appointment
       - action: book_appointment_form
       - active_loop: book_appointment_form
-    #   - intent: affirm
-    #   - action: utter_confirm
+
   # ================================ Đặt lịch khám =============================================================
   - story: happy path book appointment
     steps:
@@ -70,58 +62,28 @@ stories:
           - current_task: book_appointment
       - action: book_appointment_form
       - active_loop: book_appointment_form
-      # - action: utter_ask_specialty
       - intent: provide_specialty
       - slot_was_set:
-          - specialty: nhi
-      # - action: utter_ask_doctor_name
+          - specialty: nhi khoa
       - intent: choose_doctor_name
       - slot_was_set:
           - doctor_name: bác sĩ Anh
-      # - action: utter_ask_date
       - intent: provide_date
-      # - action: utter_ask_appointment_time
+      - slot_was_set:
+          - date: "20/10/2025"
       - intent: provide_time
       - slot_was_set:
-          - appointment_time: 3 giờ chiều mai
-      # - action: utter_ask_decription
+          - appointment_time: "15:00"
       - intent: provide_decription
       - slot_was_set:
           - decription: khám bệnh cho con tôi
       - active_loop: null
       - action: action_book_appointment
-    #   - intent: affirm
-    #   - action: utter_confirm
 
-  # ================================ Tra cứu thông tin bác sĩ =============================================================
-  - story: happy path search doctor info
-    steps:
-      - intent: greet
-      - action: utter_greet
-      - intent: search_doctor_info
-      #   - action: action_set_current_task
-      #   - slot_was_set:
-      #       - current_task: search_doctor_info
-      - action: utter_doctor_info
-      - intent: choose_doctor_name
-      - slot_was_set:
-          - doctor_name: bác sĩ Anh
-      - action: action_search_doctor
-    #   - intent: affirm
-    #   - action: utter_confirm
+  # ← XÓA story "book appointment with specialty explanation interruption"
+  # Rule sẽ xử lý interruption!
 
-    # ================================ Giải thích chuyên khoa =============================================================
-  - story: happy path explain specialty 1
-    steps:
-      - intent: greet
-      - action: utter_greet
-      - intent: explain_specialty
-      - slot_was_set:
-          - specialty: nhi
-      - action: action_search_specialty
-    #   - intent: affirm
-    #   - action: utter_confirm
-    # ================================ Hủy lịch hẹn =============================================================
+  # ================================ Hủy lịch hẹn =============================================================
   - story: happy path cancel appointment
     steps:
       - intent: greet

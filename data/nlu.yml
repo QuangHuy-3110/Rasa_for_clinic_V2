@@ -294,7 +294,10 @@ nlu:
       - khoa [tiêu hóa](specialty) là gì
       - khoa [hô hấp](specialty) chữa bệnh gì
       - giải thích [tim mạch](specialty) chuyên khoa
-
+      - [nội khoa](specialty) là gì
+      - [ngoại khoa](specialty) chữa bệnh gì
+      - [phụ sản](specialty) là khám gì
+      - [răng hàm mặt](specialty) là làm gì
   # ==================================== Hủy lịch khám =============================================================
   - intent: select_appointment
     examples: |
@@ -317,6 +320,7 @@ nlu:
       - tôi cần bạn hỗ trợ tôi hủy lịch khám
       - hỗ trợ tôi hủy lịch khám với
       - giúp tôi hủy lịch khám với
+
   - intent: affirm
     examples: |
       - có
@@ -337,3 +341,13 @@ nlu:
       - bậy bạ
       - tầm bậy
       - bỏ
+
+  - intent: nlu_fallback
+    examples: |
+      - 
+      - ? 
+      - ...
+      - huh?
+      - tôi không biết
+      - gì vậy
+      - bạn nói gì?

@@ -21,14 +21,12 @@ rules:
     steps:
       - intent: provide_medical_info
       - action: action_recommend_doctor
-      # - action: utter_recommend_doctor
 
   # ===================== Đề xuất bác sĩ + đặt lịch khám ============================
-
   - rule: Activate booking form after select doctor
     steps:
       - intent: book_with_doctor
-      - action: action_book_with_doctor # Set slots
+      - action: action_book_with_doctor
       - action: action_set_current_task
       - action: book_appointment_form
       - active_loop: book_appointment_form
@@ -41,16 +39,30 @@ rules:
       - action: book_appointment_form
       - active_loop: book_appointment_form
 
-  - rule: Submit book appointment form
+  # - rule: Submit book appointment form
+  #   condition:
+  #     - active_loop: book_appointment_form
+  #   steps:
+  #     - action: book_appointment_form
+  #     - active_loop: null
+  #     - action: action_book_appointment
+
+  # ===================== Giải thích chuyên khoa (interruption) ============================
+  - rule: Handle explain interruption in book_appointment
     condition:
-      - active_loop: book_appointment_form
+      - slot_was_set:
+          - just_explained: true
+      - slot_was_set:
+          - current_task: book_appointment
     steps:
+      - action: action_explain_specialty_in_form
+      - slot_was_set:
+          - just_explained: false
       - action: book_appointment_form
-      - active_loop: null
-      - action: action_book_appointment
+      - active_loop: book_appointment_form
+    wait_for_user_input: false # ← Thêm để rule chạy ngay
 
-  # ===================== Hủy lịch khám ============================
-
+  # ===================== Misc ============================
   - rule: greet
     steps:
       - intent: greet
