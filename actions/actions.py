@@ -40,6 +40,128 @@ WRONG_INPUT_KEYWORDS = {
 # Global variable cho mã bệnh nhân (có thể set động từ slot hoặc config sau)
 MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
 
+class ActionListDoctorsInForm(Action):
+    def name(self) -> Text:
+        return "action_list_doctors_in_form"
+
+    def run(self, dispatcher, tracker, domain):
+        # Lấy chuyên khoa từ entities hoặc slot
+        entities = tracker.latest_message.get('entities', [])
+        specialty_entity = next((e['value'] for e in entities if e['entity'] == 'specialty'), None)
+        
+        # Ưu tiên entity, sau đó slot
+        specialty = specialty_entity or tracker.get_slot("specialty")
+        
+        if not specialty:
+            dispatcher.utter_message(text="Vui lòng cung cấp tên chuyên khoa bạn muốn xem danh sách bác sĩ.")
+            return []
+        
+        print(f"[DEBUG] Listing doctors for specialty: {specialty}")
+        
+        # Query DB để lấy danh sách bác sĩ theo chuyên khoa
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS
+            FROM bacsi bs
+            JOIN chuyenmon cm ON bs.maBS = cm.maBS
+            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+            WHERE ck.tenCK LIKE %s
+            ORDER BY bs.tenBS
+            """
+            cursor.execute(query, (f"%{specialty}%",))
+            doctors = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not doctors:
+                dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào trong chuyên khoa '{specialty}'. Vui lòng kiểm tra lại tên chuyên khoa.")
+                return [SlotSet("specialty", None)]
+            
+            # Hiển thị danh sách bác sĩ
+            dispatcher.utter_message(text=f"📋 **Danh sách bác sĩ chuyên khoa {doctors[0]['tenCK']}:**\n")
+            
+            for idx, doc in enumerate(doctors, 1):
+                doc_info = f"{idx}. 🩺 **Bác sĩ {doc['tenBS']}**\n   - SĐT: {doc['sdtBS']}\n   - Email: {doc.get('emailBS', 'Chưa có')}"
+                dispatcher.utter_message(text=doc_info)
+            
+            dispatcher.utter_message(text=f"\nTổng cộng: {len(doctors)} bác sĩ\n\nTiếp tục đặt lịch...")
+            
+            # Set lại specialty nếu khác với specialty hiện tại
+            current_specialty = tracker.get_slot("specialty")
+            if not current_specialty or current_specialty.lower() != doctors[0]['tenCK'].lower():
+                return [SlotSet("specialty", doctors[0]['tenCK'])]
+            
+            return []
+            
+        except Exception as e:
+            print(f"[ERROR] {e}")
+            dispatcher.utter_message(text="Có lỗi khi tra cứu danh sách bác sĩ. Vui lòng thử lại.")
+            return []
+
+class ActionShowDoctorInfoInForm(Action):
+    def name(self) -> Text:
+        return "action_show_doctor_info_in_form"
+
+    def run(self, dispatcher, tracker, domain):
+        # Lấy tên bác sĩ từ entities hoặc slot
+        entities = tracker.latest_message.get('entities', [])
+        doctor_name = next((e['value'] for e in entities if e['entity'] == 'doctor_name'), None)
+        
+        if not doctor_name:
+            doctor_name = tracker.get_slot("doctor_name")
+        
+        if not doctor_name:
+            dispatcher.utter_message(text="Vui lòng cung cấp tên bác sĩ bạn muốn tra cứu.")
+            return []
+        
+        print(f"[DEBUG] Showing doctor info: {doctor_name}")
+        
+        # Query DB để lấy thông tin bác sĩ
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS
+            FROM bacsi bs
+            JOIN chuyenmon cm ON bs.maBS = cm.maBS
+            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+            WHERE bs.tenBS LIKE %s
+            """
+            cursor.execute(query, (f"%{doctor_name}%",))
+            doctor = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if doctor:
+                info_text = f"""
+                    📋 **Thông tin Bác sĩ {doctor['tenBS']}**
+                    - Mã BS: {doctor['maBS']}
+                    - Chuyên khoa: {doctor['tenCK']}
+                    - SĐT: {doctor['sdtBS']}
+                    - Email: {doctor.get('emailBS', 'Chưa có thông tin')}
+                    - Kinh nghiệm: 20 năm
+
+                    Tiếp tục đặt lịch...
+                """
+                dispatcher.utter_message(text=info_text)
+                
+                # Nếu user chưa chọn bác sĩ này, set vào slot
+                current_doctor = tracker.get_slot("doctor_name")
+                if not current_doctor or current_doctor.lower() != doctor['tenBS'].lower():
+                    return [SlotSet("doctor_name", doctor['tenBS'])]
+                
+                return []
+            else:
+                dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_name}'. Vui lòng kiểm tra lại tên.")
+                return []
+                
+        except Exception as e:
+            print(f"[ERROR] {e}")
+            dispatcher.utter_message(text="Có lỗi khi tra cứu thông tin bác sĩ. Vui lòng thử lại.")
+            return []
+
 class ActionExplainSpecialtyInForm(Action):
     def name(self) -> Text:
         return "action_explain_specialty_in_form"
@@ -126,35 +248,6 @@ class ValidateMyForm(FormValidationAction):
     ) -> List[Dict[Text, Any]]:
         # Logic của form validation action
         return await super().run(dispatcher, tracker, domain)
-
-class ActionDeactivateForm(Action):
-    def name(self) -> Text:
-        return "action_deactivate_my_form"
-
-    async def run(
-        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> List[Dict[Text, Any]]:
-        dispatcher.utter_message(text="Đã dừng form. Bạn muốn làm gì tiếp theo?")
-
-        events = []
-        events.append(SlotSet("requested_slot", None))
-        
-
-        # Nếu bạn muốn xóa các slot cụ thể của form khi dừng, hãy uncomment đoạn code dưới đây
-        # form_slots_to_clear = ["pizza_size", "topping", "crust_type"] # Thay thế bằng tên các slot của bạn
-        # for slot_name in form_slots_to_clear:
-        #     if tracker.get_slot(slot_name) is not None:
-        #         events.append(SlotSet(slot_name, None))
-
-        return events
-
-class ActionStopForm(Action):
-    def name(self):
-        return "action_stop_form"
-
-    async def run(self, dispatcher, tracker, domain):
-        # Action này chỉ đơn giản là vô hiệu hóa ActiveLoop
-        return [ActiveLoop(None)]
 
 class ValidateRecommendDoctorForm(FormValidationAction):
     def name(self) -> Text:
@@ -332,73 +425,6 @@ class ValidateBookAppointmentForm(FormValidationAction):
         keywords = WRONG_INPUT_KEYWORDS.get(slot_name, [])
         return any(kw in input_lower for kw in keywords)
 
-    # === Bổ sung hàm trợ giúp để xử lý ngắt form ===
-    # def _handle_form_interruption(self, dispatcher: CollectingDispatcher, tracker: Tracker) -> Dict[Text, Any]:
-    #     """
-    #     Xử lý logic khi form bị ngắt bởi một intent khác.
-    #     Đặt requested_slot về None và xóa các slot của form.
-    #     """
-    #     latest_intent = tracker.latest_message['intent'].get('name')
-        
-    #     # Danh sách các intent bạn muốn dùng để ngắt form
-    #     interrupt_intents = ["explain_specialty", "ask_info_doctor"] # Thêm các intent khác nếu cần
-
-    #     if latest_intent in interrupt_intents:
-    #         dispatcher.utter_message(text=f"Đã dừng form đặt lịch để trả lời yêu cầu của bạn về '{latest_intent}'.")
-            
-    #         # Reset tất cả các slot của form để khi bắt đầu lại sẽ trống
-    #         # Thay thế bằng TẤT CẢ các slot mà form của bạn sử dụng
-    #         slots_to_reset = {
-    #             "requested_slot": None,
-    #             # "specialty": None,
-    #             # "doctor_name": None,
-    #             # "date": None,
-    #             # "appointment_time": None,
-    #             # "decription": None,
-    #             # Thêm các slot khác của form nếu có
-    #         }
-    #         return slots_to_reset
-    #     return {} # Trả về dictionary rỗng nếu không có ngắt
-
-
-    # def _handle_form_interruption(self, dispatcher, tracker) -> Dict[Text, Any]:
-    #     latest_message = tracker.latest_message
-        
-    #     if hasattr(latest_message, 'intent'):
-    #         latest_intent = latest_message.intent.get('name')
-    #     else:
-    #         latest_intent = latest_message.get('intent', {}).get('name')
-
-    #     interrupt_intents = ["explain_specialty", "ask_info_doctor"]
-        
-    #     if latest_intent in interrupt_intents:
-    #         dispatcher.utter_message(
-    #             text=f"Đã dừng form đặt lịch để trả lời yêu cầu của bạn về '{latest_intent}'."
-    #         )
-            
-    #         entities = (getattr(latest_message, 'entities', []) 
-    #                 if hasattr(latest_message, 'entities') 
-    #                 else latest_message.get('entities', []))
-    #         specialty_entity = next((e.get('value') for e in entities 
-    #                                 if e.get('entity') == 'specialty'), None)
-            
-    #         print(f"[DEBUG] Triggering FollowupAction: action_search_specialty")
-            
-    #         # CRITICAL: Return as list of events, not dict!
-    #         return [
-    #             SlotSet("specialty", specialty_entity or tracker.get_slot("specialty")),
-    #             SlotSet("requested_slot", None),
-    #             SlotSet("just_explained", True),
-    #             SlotSet("prescription_date", None),
-    #             SlotSet("date", tracker.get_slot("date")),
-    #             SlotSet("appointment_time", tracker.get_slot("appointment_time")),
-    #             SlotSet("decription", tracker.get_slot("decription")),
-    #             SlotSet("doctor_name", tracker.get_slot("doctor_name")),
-    #             FollowupAction("action_search_specialty")  # ← FORCE chạy action này!
-    #         ]
-        
-    #     return {}
-
     def _handle_form_interruption(self, dispatcher, tracker):
         latest_message = tracker.latest_message
         
@@ -407,6 +433,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
         else:
             latest_intent = latest_message.get('intent', {}).get('name')
 
+        # === Xử lý explain_specialty ===
         if latest_intent == "explain_specialty":
             entities = (getattr(latest_message, 'entities', []) 
                     if hasattr(latest_message, 'entities') 
@@ -414,14 +441,46 @@ class ValidateBookAppointmentForm(FormValidationAction):
             specialty_entity = next((e.get('value') for e in entities 
                                     if e.get('entity') == 'specialty'), None)
             
-            # Gọi custom action
-            
+            # LUÔN LUÔN thực hiện giải thích
             explain_action = ActionExplainSpecialtyInForm()
             explain_action.run(dispatcher, tracker, {})
             
+            # KHÔNG set specialty vào slot - chỉ hỏi thôi, chưa chọn
+            # Giữ nguyên giá trị specialty hiện tại (hoặc None nếu chưa có)
             return {
-                "specialty": specialty_entity or tracker.get_slot("specialty"),
-                "prescription_date": None,
+                "specialty": tracker.get_slot("specialty"),  # ← Giữ nguyên giá trị cũ
+                "just_explained": False,
+            }
+        
+        # === Xử lý ask_doctor_info ===
+        if latest_intent == "ask_doctor_info":
+            # LUÔN LUÔN thực hiện tra cứu
+            info_action = ActionShowDoctorInfoInForm()
+            info_action.run(dispatcher, tracker, {})
+            
+            # KHÔNG set doctor_name vào slot - chỉ tra cứu thông tin
+            # Giữ nguyên giá trị đã chọn trước đó (hoặc None)
+            return {
+                "doctor_name": tracker.get_slot("doctor_name"),  # ← Giữ nguyên giá trị cũ
+                "just_asked_doctor_info": False,
+            }
+        
+        # === Xử lý list_doctors_by_specialty ===
+        if latest_intent == "list_doctors_by_specialty":
+            entities = (getattr(latest_message, 'entities', []) 
+                    if hasattr(latest_message, 'entities') 
+                    else latest_message.get('entities', []))
+            specialty_entity = next((e.get('value') for e in entities 
+                                    if e.get('entity') == 'specialty'), None)
+            
+            # LUÔN LUÔN thực hiện list
+            list_action = ActionListDoctorsInForm()
+            list_action.run(dispatcher, tracker, {})
+            
+            # KHÔNG set specialty vào slot - chỉ xem danh sách
+            return {
+                "specialty": tracker.get_slot("specialty"),  # ← Giữ nguyên giá trị cũ
+                "just_listed_doctors": False,
             }
         
         return {}
@@ -429,10 +488,6 @@ class ValidateBookAppointmentForm(FormValidationAction):
     def validate_date(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # interruption_result = self._handle_form_interruption(dispatcher, tracker)
-        # if interruption_result:
-        #     return interruption_result # Nếu có ngắt, dừng validation và trả về kết quả ngắt
-
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng cung cấp ngày hẹn.")
             return {"date": None}
@@ -458,10 +513,6 @@ class ValidateBookAppointmentForm(FormValidationAction):
     def validate_appointment_time(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # interruption_result = self._handle_form_interruption(dispatcher, tracker)
-        # if interruption_result:
-        #     return interruption_result
-
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng cung cấp thời gian hẹn.")
             return {"appointment_time": None}
@@ -479,18 +530,13 @@ class ValidateBookAppointmentForm(FormValidationAction):
                 return {"appointment_time": None}
         except ValueError:
             dispatcher.utter_message(text="Thời gian bạn nhập không hợp lệ. Vui lòng nhập theo định dạng HH:MM.")
-            return {"appointment_time": None}
+            return {"appointment_time": time_input}
 
         return {"appointment_time": time_input}
 
     def validate_decription(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # interruption_result = self._handle_form_interruption(dispatcher, tracker)
-        # if interruption_result:
-        #     return interruption_result
-
-        """Validate mô tả + RE-SET tất cả required slots khác để prevent override từ extraction"""
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng cung cấp mô tả chi tiết về tình trạng của bạn.")
             return {"decription": None}
@@ -504,8 +550,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
             dispatcher.utter_message(text="Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết.")
             return {"decription": None}
 
-        # RE-SET tất cả required slots khác về giá trị hiện tại (từ tracker) để override extraction nhầm
-        # Điều này đảm bảo không bị reset sau khi input mô tả
+        # RE-SET tất cả required slots khác về giá trị hiện tại
         slot_values = {
             "decription": desc_input,
             "date": tracker.get_slot("date"),
@@ -514,30 +559,18 @@ class ValidateBookAppointmentForm(FormValidationAction):
             "appointment_time": tracker.get_slot("appointment_time")
         }
 
-        # Debug log (bỏ sau khi test)
-        # print(f"[DEBUG] Slots before re-set: {dict(tracker.slots)}")
-        # print(f"[DEBUG] Re-setting slots: {slot_values}")
-
-        # Kiểm tra nếu tất cả required đầy đủ trước khi return (logic này vẫn tốt)
-        required_slots = ["date", "specialty", "doctor_name", "appointment_time", "decription"]
-        if all(slot_values.get(slot) for slot in required_slots):
-            # print("[DEBUG] All slots full, form will submit.")
-            pass
-        else:
-            # print("[DEBUG] Some slots still None, form will continue.")
-            pass
-
-        return slot_values  # Return dict với tất cả để re-set
+        return slot_values
 
     def validate_specialty(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # Check interruption FIRST
+        # ===== CHECK INTERRUPTION TRƯỚC =====
         interruption_result = self._handle_form_interruption(dispatcher, tracker)
         if interruption_result:
-            return interruption_result  # Already has all keys including requested_slot
+            # Interruption đã xử lý và return kết quả với flag reset
+            return interruption_result
         
-        # Normal validation below
+        # ===== VALIDATION BÌNH THƯỜNG =====
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng chọn chuyên khoa.")
             return {"specialty": None}
@@ -549,7 +582,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
             )
             return {"specialty": None}
 
-        # Validate with DB...
+        # Validate với DB
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
@@ -572,10 +605,13 @@ class ValidateBookAppointmentForm(FormValidationAction):
     def validate_doctor_name(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # interruption_result = self._handle_form_interruption(dispatcher, tracker)
-        # if interruption_result:
-        #     return interruption_result
-
+        # ===== CHECK INTERRUPTION TRƯỚC =====
+        interruption_result = self._handle_form_interruption(dispatcher, tracker)
+        if interruption_result:
+            # Interruption đã xử lý và return kết quả với flag reset
+            return interruption_result
+        
+        # ===== VALIDATION BÌNH THƯỜNG =====
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng chọn bác sĩ.")
             return {"doctor_name": None}
@@ -611,7 +647,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
         matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
         if not matched:
             dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Các bác sĩ có sẵn:")
-            for doc in doctors[:3]: # Chỉ hiển thị 3 bác sĩ đầu
+            for doc in doctors[:3]:
                 dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
             dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
             return {"doctor_name": None}
@@ -621,198 +657,16 @@ class ValidateBookAppointmentForm(FormValidationAction):
             text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
         )
         return {"doctor_name": doc["tenBS"]}
-
-# class ValidateBookAppointmentForm(FormValidationAction):
-#     def name(self) -> Text:
-#         return "validate_book_appointment_form"
-
-#     def _detect_wrong_input(self, slot_name: str, slot_value: str) -> bool:
-#         """Check nếu input match keywords của slot khác"""
-#         input_lower = slot_value.lower()
-#         keywords = WRONG_INPUT_KEYWORDS.get(slot_name, [])
-#         return any(kw in input_lower for kw in keywords)
-
-#     # =========================================================
-#     # HÀM _handle_form_interruption ĐÃ BỊ LOẠI BỎ KHỎI ĐÂY
-#     # Việc ngắt form sẽ được xử lý hoàn toàn bởi RulePolicy.
-#     # =========================================================
-
-#     async def validate_date(
-#         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> Dict[Text, Any]:
-#         """Validate date value."""
-#         # Không còn gọi _handle_form_interruption ở đây
-
-#         if not slot_value:
-#             # Điều này sẽ không xảy ra nếu slot là required và form đang hỏi nó
-#             # Nhưng tốt cho tính an toàn nếu có sự cố
-#             dispatcher.utter_message(text="Vui lòng cung cấp ngày hẹn.")
-#             return {"date": None}
-
-#         date_input = str(slot_value).strip()
-#         if self._detect_wrong_input('date', date_input):
-#             dispatcher.utter_message(text="Tôi nghĩ bạn đang mô tả bệnh, nhưng hiện tại tôi cần ngày hẹn trước. Vui lòng nhập ngày theo định dạng DD/MM/YYYY (ví dụ: 15/10/2025).")
-#             return {"date": None}
-
-#         try:
-#             parsed_date = datetime.strptime(date_input, '%d/%m/%Y')
-#         except ValueError:
-#             dispatcher.utter_message(text="Ngày bạn nhập không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
-#             return {"date": None}
-
-#         today = datetime.now().date()
-#         if parsed_date.date() < today:
-#             dispatcher.utter_message(text="Ngày hẹn phải trong tương lai. Vui lòng chọn ngày khác.")
-#             return {"date": None}
-
-#         return {"date": date_input}
-
-#     async def validate_appointment_time(
-#         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> Dict[Text, Any]:
-#         """Validate appointment_time value."""
-#         # Không còn gọi _handle_form_interruption ở đây
-
-#         if not slot_value:
-#             dispatcher.utter_message(text="Vui lòng cung cấp thời gian hẹn.")
-#             return {"appointment_time": None}
-
-#         time_input = str(slot_value).strip()
-#         if self._detect_wrong_input('appointment_time', time_input):
-#             dispatcher.utter_message(text="Đó có vẻ là thông tin khác (như ngày hoặc mô tả). Vui lòng nhập thời gian theo định dạng HH:MM (ví dụ: 14:30).")
-#             return {"appointment_time": None}
-
-#         try:
-#             parsed_time = datetime.strptime(time_input, '%H:%M')
-#             hour = parsed_time.hour
-#             # Giả sử giờ làm việc từ 8:00 đến 16:59
-#             if not (8 <= hour < 17):
-#                 dispatcher.utter_message(text="Thời gian hẹn phải trong giờ làm việc (8:00 - 17:00). Vui lòng chọn lại.")
-#                 return {"appointment_time": None}
-#         except ValueError:
-#             dispatcher.utter_message(text="Thời gian bạn nhập không hợp lệ. Vui lòng nhập theo định dạng HH:MM.")
-#             return {"appointment_time": None}
-
-#         return {"appointment_time": time_input}
-
-#     async def validate_decription(
-#         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> Dict[Text, Any]:
-#         """Validate decription (mô tả bệnh) value."""
-#         # Không còn gọi _handle_form_interruption ở đây
-
-#         if not slot_value:
-#             dispatcher.utter_message(text="Vui lòng cung cấp mô tả chi tiết về tình trạng của bạn.")
-#             return {"decription": None}
-
-#         desc_input = str(slot_value).strip()
-#         if self._detect_wrong_input('decription', desc_input):
-#             dispatcher.utter_message(text="Đó có vẻ là thông tin khác (như ngày hoặc bác sĩ). Vui lòng mô tả bệnh chi tiết.")
-#             return {"decription": None}
-
-#         if len(desc_input) < 5:
-#             dispatcher.utter_message(text="Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết.")
-#             return {"decription": None}
-
-#         # Phần này vẫn tốt để ngăn chặn việc ghi đè các slot khác nếu NLU trích xuất nhầm
-#         slot_values = {
-#             "decription": desc_input,
-#             "date": tracker.get_slot("date"),
-#             "specialty": tracker.get_slot("specialty"),
-#             "doctor_name": tracker.get_slot("doctor_name"),
-#             "appointment_time": tracker.get_slot("appointment_time")
-#         }
-#         return slot_values
-
-#     async def validate_specialty(
-#         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> Dict[Text, Any]:
-#         """Validate specialty value."""
-#         # Không còn gọi _handle_form_interruption ở đây
-
-#         if not slot_value:
-#             dispatcher.utter_message(text="Vui lòng chọn chuyên khoa.")
-#             return {"specialty": None}
-
-#         specialty_input = str(slot_value).strip().lower()
-#         if self._detect_wrong_input('specialty', specialty_input):
-#             dispatcher.utter_message(text="Đó có vẻ là thông tin khác (như mô tả bệnh hoặc ngày). Vui lòng nhập tên chuyên khoa (ví dụ: Nội khoa).")
-#             return {"specialty": None}
-
-#         try:
-#             conn = mysql.connector.connect(**DB_CONFIG)
-#             cursor = conn.cursor(dictionary=True)
-#             cursor.execute("SELECT tenCK FROM chuyenkhoa")
-#             specialties = [row['tenCK'].lower() for row in cursor.fetchall()]
-#             cursor.close()
-#             conn.close()
-#         except Error as e:
-#             # Bạn có thể muốn có một cách xử lý lỗi tốt hơn ở đây,
-#             # ví dụ: một fallback message hoặc cố gắng kết nối lại.
-#             dispatcher.utter_message(text=f"Lỗi kết nối DB khi lấy danh sách chuyên khoa: {e}. Vui lòng thử lại sau.")
-#             return {"specialty": None}
-
-#         if specialty_input not in specialties:
-#             dispatcher.utter_message(text=f"Chuyên khoa '{slot_value}' không có. Các chuyên khoa có sẵn:")
-#             for s in specialties[:5]: # Chỉ hiển thị 5 chuyên khoa đầu
-#                 dispatcher.utter_message(text=f"- {s.title()}")
-#             dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
-#             return {"specialty": None}
-
-#         return {"specialty": slot_value.title()}
-
-#     async def validate_doctor_name(
-#         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> Dict[Text, Any]:
-#         """Validate doctor_name value."""
-#         # Không còn gọi _handle_form_interruption ở đây
-
-#         if not slot_value:
-#             dispatcher.utter_message(text="Vui lòng chọn bác sĩ.")
-#             return {"doctor_name": None}
-
-#         doctor_input = str(slot_value).strip()
-#         if self._detect_wrong_input('doctor_name', doctor_input):
-#             dispatcher.utter_message(text="Đó có vẻ là thông tin khác. Vui lòng nhập tên bác sĩ hoặc chọn từ danh sách.")
-#             return {"doctor_name": None}
-
-#         specialty = tracker.get_slot("specialty")
-#         try:
-#             conn = mysql.connector.connect(**DB_CONFIG)
-#             cursor = conn.cursor(dictionary=True)
-#             if specialty:
-#                 cursor.execute("""
-#                     SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-#                     FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
-#                     JOIN chuyenkhoa ck ON cm.maCK = ck.maCK WHERE ck.tenCK = %s
-#                 """, (specialty,))
-#             else:
-#                 # Nếu specialty là None, tìm kiếm tất cả bác sĩ
-#                 cursor.execute("""
-#                     SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-#                     FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
-#                     JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
-#                 """)
-#             doctors = cursor.fetchall()
-#             cursor.close()
-#             conn.close()
-#         except Error as e:
-#             dispatcher.utter_message(text=f"Lỗi kết nối DB khi tìm bác sĩ: {e}. Vui lòng thử lại sau.")
-#             return {"doctor_name": None}
-
-#         matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
-#         if not matched:
-#             dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Các bác sĩ có sẵn:")
-#             for doc in doctors[:3]: # Chỉ hiển thị 3 bác sĩ đầu
-#                 dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
-#             dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
-#             return {"doctor_name": None}
-
-#         doc = matched[0]
-#         dispatcher.utter_message(
-#             text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
-#         )
-#         return {"doctor_name": doc["tenBS"]}
+    
+    def validate_any_slot(self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> Dict[Text, Any]:
+        # Kiểm tra nếu latest intent là deny, thì dừng form ngay
+        latest_intent = tracker.latest_message.get('intent', {}).get('name')
+        if latest_intent == 'deny':
+            dispatcher.utter_message(text="Đã hủy yêu cầu. Nếu bạn muốn bắt đầu lại, hãy cho tôi biết!")
+            return {
+                "requested_slot": None,
+            }
+        return {}
 
 class ActionBookAppointment(Action):
     def name(self) -> Text:
@@ -1293,3 +1147,62 @@ class ActionSetCurrentTask(Action):
         elif intent == 'cancel_appointment':
             return [SlotSet("current_task", "cancel_appointment")]
         return []
+    
+class ActionHandleDeny(Action):
+    """
+    Custom Action để xử lý intent 'deny': Dừng tất cả forms active, reset slots liên quan,
+    và đưa bot về trạng thái mặc định (ví dụ: chào hỏi hoặc menu chính).
+    
+    Sử dụng: 
+    - Trong domain.yml: Thêm intent 'deny' với action này.
+    - Trong rules.yml: Rule như:
+      - rule: Deactivate form on deny
+        condition:
+        - active_loop: book_appointment_form  # Hoặc form khác
+        steps:
+        - intent: deny
+        - action: action_handle_deny
+        - active_loop: null
+    
+    Điều này sẽ tự động deactivate form khi deny trong bất kỳ form nào.
+    """
+    def name(self) -> Text:
+        return "action_handle_deny"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict]:
+        # Utter thông báo hủy
+        dispatcher.utter_message(
+            text="Đã hủy yêu cầu hiện tại. Bạn có muốn làm gì khác không? (Ví dụ: đặt lịch mới, tra cứu lịch hẹn, hoặc chào hỏi để quay về menu chính.)"
+        )
+        
+        # Deactivate form hiện tại (nếu có)
+        events = [ActiveLoop(None)]
+        
+        # Reset slots chung cho các task (tùy theo current_task)
+        current_task = tracker.get_slot("current_task")
+        if current_task == "book_appointment":
+            events += [
+                SlotSet("doctor_name", None),
+                SlotSet("specialty", None),
+                SlotSet("date", None),
+                SlotSet("appointment_time", None),
+                SlotSet("decription", None),
+                SlotSet("just_listed_doctors", None),
+                SlotSet("just_explained", None),
+                SlotSet("just_asked_doctor_info", None)
+            ]
+        elif current_task == "cancel_appointment":
+            events += [
+                SlotSet("selected_appointment_id", None),
+                SlotSet("appointment_date", None)
+            ]
+        elif current_task == "search_prescription":
+            events += [SlotSet("prescription_date", None)]
+        
+        # Reset current_task chung
+        events += [SlotSet("current_task", None)]
+        
+        # Optional: Followup với action mặc định, ví dụ quay về greet
+        # events += [FollowupAction("action_greet")]  # Nếu có action greet custom
+        
+        return events

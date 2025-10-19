@@ -249,7 +249,7 @@ nlu:
 
   # ==================================== Tra cứu thông tin bác sĩ =============================================================
 
-  - intent: search_doctor_info
+  - intent: ask_doctor_info
     examples: |
       - tôi muốn tra cứu thông tin bác sĩ
       - cho tôi biết thông tin về bác sĩ
@@ -298,6 +298,30 @@ nlu:
       - [ngoại khoa](specialty) chữa bệnh gì
       - [phụ sản](specialty) là khám gì
       - [răng hàm mặt](specialty) là làm gì
+
+  - intent: list_doctors_by_specialty
+    examples: |
+      - các bác sĩ [nội khoa](specialty)
+      - bác sĩ nào trong chuyên khoa [ngoại khoa](specialty)
+      - danh sách bác sĩ [nhi khoa](specialty)
+      - có bao nhiêu bác sĩ [sản khoa](specialty)
+      - cho tôi xem bác sĩ [răng hàm mặt](specialty)
+      - liệt kê bác sĩ [thần kinh](specialty)
+      - [nội khoa](specialty) có bác sĩ nào
+      - chuyên khoa [ngoại khoa](specialty) có những bác sĩ nào
+      - xem danh sách bác sĩ [nhi khoa](specialty)
+      - bác sĩ [sản khoa](specialty) có ai
+      - tất cả bác sĩ [răng hàm mặt](specialty)
+      - những bác sĩ nào ở [thần kinh](specialty)
+      - [nội khoa](specialty) có mấy bác sĩ
+      - bác sĩ chuyên khoa [ngoại khoa](specialty)
+      - danh sách [nhi khoa](specialty)
+      - các bác sĩ trong chuyên khoa này
+      - bác sĩ nào ở đây
+      - có những bác sĩ nào
+      - liệt kê bác sĩ
+      - cho tôi xem danh sách bác sĩ
+
   # ==================================== Hủy lịch khám =============================================================
   - intent: select_appointment
     examples: |

@@ -14,8 +14,9 @@ intents:
   - choose_doctor_name
   - provide_time
   - provide_date
-  - search_doctor_info
+  # - search_doctor_info
   - explain_specialty
+  - ask_doctor_info # ← THÊM intent mới
   - cancel_appointment
   - select_appointment
   - nlu_fallback
@@ -32,10 +33,24 @@ entities:
   - doctor_id
 
 slots:
+  just_listed_doctors:
+    type: bool
+    initial_value: false
+    influence_conversation: true
+    mappings:
+      - type: custom
+
   just_explained:
     type: bool
     initial_value: false
-    influence_conversation: true # ← MUST HAVE
+    influence_conversation: true
+    mappings:
+      - type: custom
+
+  just_asked_doctor_info: # ← THÊM slot mới
+    type: bool
+    initial_value: false
+    influence_conversation: true
     mappings:
       - type: custom
 
@@ -60,7 +75,7 @@ slots:
       - book_appointment
       - cancel_appointment
     mappings:
-      - type: custom # Set qua custom action
+      - type: custom
 
   specialty_suggested:
     type: text
@@ -73,7 +88,7 @@ slots:
     influence_conversation: false
     mappings:
       - type: from_entity
-        entity: date # Hoặc from_text nếu nhập text ngày
+        entity: date
       - type: custom
 
   prescription_date:
@@ -83,18 +98,17 @@ slots:
       - type: from_text
       - type: custom
 
-  # Điều chỉnh mappings để ưu tiên entity từ payload và hạn chế from_text khi form active
   doctor_name:
     type: text
     influence_conversation: true
     mappings:
-      - type: from_entity # Ưu tiên entity được trích xuất từ NLU
+      - type: from_entity
         entity: doctor_name
-      - type: from_entity # Nếu entity đến từ payload của nút bấm
+      - type: from_entity
         entity: doctor_name
         intent: choose_doctor_name
-      - type: custom # Cho phép action set slot
-      - type: from_text # CHỈ LẤY TỪ TEXT nếu không phải các intent điều khiển flow
+      - type: custom
+      - type: from_text
         not_intent:
           - greet
           - goodbye
@@ -106,10 +120,12 @@ slots:
           - provide_date
           - provide_time
           - provide_decription
-          - provide_medical_info # THÊM: Block khi input y tế để tránh overwrite
-          - choose_doctor_name # Không lấy tên bác sĩ từ text nếu người dùng vừa bấm nút chọn bác sĩ
+          - provide_medical_info
+          - choose_doctor_name
           - book_with_doctor
-          - explain_specialty # ← THÊM: Block extract khi interruption
+          - explain_specialty
+          - ask_doctor_info # ← THÊM để block extract khi interruption
+          - list_doctors_by_specialty
 
   appointment_time:
     type: text
@@ -131,10 +147,12 @@ slots:
           - provide_date
           - choose_doctor_name
           - provide_decription
-          - provide_medical_info # THÊM: Block khi input y tế
-          - provide_time # Tránh lấy từ payload nếu là nút 'provide_time' không có entity
+          - provide_medical_info
+          - provide_time
           - book_with_doctor
-          - explain_specialty # ← THÊM: Block extract khi interruption
+          - explain_specialty
+          - ask_doctor_info # ← THÊM
+          - list_doctors_by_specialty
       - type: custom
 
   decription:
@@ -144,9 +162,9 @@ slots:
       - type: from_entity
         entity: decription
       - type: from_text
-        intent: # Whitelist intent để chỉ map khi đúng context (thay vì not_intent)
+        intent:
           - provide_decription
-          - provide_medical_info # Cho phép input y tế ở slot này
+          - provide_medical_info
       - type: custom
 
   specialty:
@@ -157,7 +175,7 @@ slots:
         entity: specialty
       - type: from_entity
         entity: specialty
-        intent: provide_specialty # Nếu entity đến từ payload của nút bấm
+        intent: provide_specialty
       - type: custom
       - type: from_text
         not_intent:
@@ -171,10 +189,11 @@ slots:
           - choose_doctor_name
           - provide_time
           - provide_decription
-          - provide_medical_info # THÊM: Block khi input y tế
-          - provide_specialty # Không lấy chuyên khoa từ text nếu người dùng vừa bấm nút chọn chuyên khoa
+          - provide_medical_info
+          - provide_specialty
           - book_with_doctor
-          # - explain_specialty # ← THÊM: Block extract khi interruption
+          - ask_doctor_info # ← THÊM
+          - list_doctors_by_specialty
 
   date:
     type: text
@@ -194,19 +213,21 @@ slots:
           - choose_doctor_name
           - provide_time
           - provide_decription
-          - provide_medical_info # THÊM: Block khi input y tế
-          - provide_date # Tránh lấy từ payload nếu là nút 'provide_date' không có entity
+          - provide_medical_info
+          - provide_date
           - book_with_doctor
-          - explain_specialty # ← THÊM: Block extract khi interruption
+          - explain_specialty
+          - ask_doctor_info # ← THÊM
+          - list_doctors_by_specialty
       - type: custom
 
   selected_appointment_id:
-    type: text # Lưu ID dưới dạng string (ví dụ: "LH001")
-    influence_conversation: false # Không ảnh hưởng policy (chỉ tạm thời)
+    type: text
+    influence_conversation: false
     mappings:
-      - type: from_entity # Extract từ entity appointment_id trong payload
+      - type: from_entity
         entity: appointment_id
-      - type: custom # Set từ action (như SlotSet trong ActionConfirmCancel)
+      - type: custom
 
 responses:
   utter_greet:
@@ -216,8 +237,6 @@ responses:
           payload: "/request_doctor"
         - title: "Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "Tra cứu thông tin bác sĩ"
-          payload: "/search_doctor_info"
         - title: "Hủy lịch hẹn"
           payload: "/cancel_appointment"
 
@@ -229,17 +248,18 @@ responses:
 
   utter_ask_specialty:
     - text: "Bạn muốn khám chuyên khoa nào? \nCác chuyên khoa mà chúng tôi hỗ trợ bao gồm: nội khoa, ngoại khoa, nha khoa, phụ sản, nhi khoa, thần kinh. \nVui lòng nhập tên chuyên khoa."
-  #   # Nút bấm sẽ được gửi từ validate_specialty trong actions.py
 
   utter_explain_specialty:
     - text: "Bạn muốn tìm hiểu về chuyên khoa nào? Vui lòng nhập tên chuyên khoa."
+
+  utter_ask_doctor_info: # ← THÊM response mới
+    - text: "Bạn muốn xem thông tin của bác sĩ nào? Vui lòng nhập tên bác sĩ."
 
   utter_specialty_not_found:
     - text: "Chuyên khoa '{specialty}' không hợp lệ hoặc không có sẵn. Vui lòng chọn từ danh sách sau hoặc nhập lại:"
 
   utter_ask_doctor_name:
     - text: "Bạn muốn khám với bác sĩ nào? Vui lòng chọn hoặc nhập tên bác sĩ."
-  # Nút bấm sẽ được gửi từ validate_doctor_name trong actions.py
 
   utter_doctor_info:
     - text: "Bạn muốn tra cứu thông tin bác sĩ nào? Vui lòng nhập tên bác sĩ."
@@ -272,7 +292,6 @@ responses:
   utter_appointment_cancelled:
     - text: "Bạn đã hủy đặt lịch hẹn."
 
-  # Added missing responses for completeness
   utter_default_error:
     - text: "Có lỗi xảy ra. Vui lòng thử lại sau."
 
@@ -302,9 +321,6 @@ responses:
 
   utter_validate_decription_wrong_input:
     - text: "Thông tin bạn nhập không phải mô tả bệnh. Vui lòng mô tả chi tiết tình trạng."
-
-  utter_validate_decription_short:
-    - text: "Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết (ít nhất 5 từ)."
 
   utter_doctor_not_found:
     - text: "Không tìm thấy bác sĩ '{doctor_name}' trong chuyên khoa {specialty}. Vui lòng chọn từ danh sách:"
@@ -362,6 +378,16 @@ responses:
   utter_ask_again:
     - text: "Xin lỗi, tôi không hiểu rõ câu hỏi của bạn. Bạn có thể nói lại hoặc chọn một trong các tùy chọn không?"
 
+  utter_ask_intent:
+    - text: "Bạn muốn làm gì tiếp theo? Vui lòng chọn một trong các tùy chọn sau:"
+      buttons:
+        - title: "Đề xuất bác sĩ"
+          payload: "/request_doctor"
+        - title: "Đặt lịch hẹn"
+          payload: "/book_appointment"
+        - title: "Hủy lịch hẹn"
+          payload: "/cancel_appointment"
+
 forms:
   recommend_doctor_form:
     required_slots:
@@ -378,34 +404,28 @@ forms:
 actions:
   - action_recommend_doctor
   - validate_recommend_doctor_form
-
   - action_book_with_doctor
-
   - action_set_current_task
-
   - validate_book_appointment_form
   - action_book_appointment
-
   - action_reactivate_book_form
-
   - action_search_doctor
-
   - action_view_doctor_detail
   - action_search_specialty
-
   - action_cancel_appointment
   - action_confirm_cancel
   - action_perform_cancel
-
   - action_search_prescription
   - action_submit_booking
   - action_reset_booking
   - action_reset_cancel
-
   - validate_my_form
   - action_deactivate_my_form
   - action_stop_form
   - action_explain_specialty_in_form
+  - action_show_doctor_info_in_form # ← THÊM action mới
+  - action_list_doctors_in_form
+  - action_handle_deny
 
 session_config:
   session_expiration_time: 60

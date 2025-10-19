@@ -39,13 +39,13 @@ rules:
       - action: book_appointment_form
       - active_loop: book_appointment_form
 
-  # - rule: Submit book appointment form
-  #   condition:
-  #     - active_loop: book_appointment_form
-  #   steps:
-  #     - action: book_appointment_form
-  #     - active_loop: null
-  #     - action: action_book_appointment
+  - rule: submit after book appointment form
+    condition:
+      - active_loop: book_appointment_form
+    steps:
+      - action: book_appointment_form
+      - active_loop: null
+      - action: action_book_appointment
 
   # ===================== Giải thích chuyên khoa (interruption) ============================
   - rule: Handle explain interruption in book_appointment
@@ -61,6 +61,51 @@ rules:
       - action: book_appointment_form
       - active_loop: book_appointment_form
     wait_for_user_input: false # ← Thêm để rule chạy ngay
+
+  - rule: Explain specialty
+    steps:
+      - intent: explain_specialty
+      - action: action_explain_specialty_in_form
+
+  # ===================== Tra cứu thông tin bác sĩ (interruption) ============================
+  - rule: Handle doctor info interruption in book_appointment
+    condition:
+      - slot_was_set:
+          - just_asked_doctor_info: true
+      - slot_was_set:
+          - current_task: book_appointment
+    steps:
+      - action: action_show_doctor_info_in_form
+      - slot_was_set:
+          - just_asked_doctor_info: false
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+    wait_for_user_input: false # ← Thêm để rule chạy ngay
+
+  - rule: Show doctor info
+    steps:
+      - intent: ask_doctor_info
+      - action: action_show_doctor_info_in_form
+
+  # ===================== Liệt kê bác sĩ theo chuyên khoa (interruption) ============================
+  - rule: Handle list doctors interruption in book_appointment
+    condition:
+      - slot_was_set:
+          - just_listed_doctors: true
+      - slot_was_set:
+          - current_task: book_appointment
+    steps:
+      - action: action_list_doctors_in_form
+      - slot_was_set:
+          - just_listed_doctors: false
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+    wait_for_user_input: false
+
+  - rule: List doctors by specialty
+    steps:
+      - intent: search_doctor_info
+      - action: action_list_doctors_in_form
 
   # ===================== Misc ============================
   - rule: greet

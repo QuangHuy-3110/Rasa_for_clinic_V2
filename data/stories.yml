@@ -100,3 +100,119 @@ stories:
       - intent: affirm
       - action: action_perform_cancel
       - action: utter_appointment_cancelled
+
+  # ================================ Xử lý deny (hủy) =============================================================
+  #   Story: Deny confirmation đặt lịch (sau khi form hoàn tất, user deny confirm)
+  - story: deny book appointment confirmation
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: book_appointment
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: book_appointment
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi khoa
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      - intent: provide_date
+      - slot_was_set:
+          - date: "20/10/2025"
+      - intent: provide_time
+      - slot_was_set:
+          - appointment_time: "15:00"
+      - intent: provide_decription
+      - slot_was_set:
+          - decription: khám bệnh cho con tôi
+      - active_loop: null
+      - action: action_book_appointment # Hiển thị confirm
+      - intent: deny # User deny confirm
+      - action: action_handle_deny
+      - active_loop: null
+      - slot_was_set:
+          - current_task: null
+      - action: utter_greet # Quay về menu chính hoặc greet
+
+  # Story: Deny confirmation hủy lịch (sau khi chọn lịch, user deny hủy)
+  - story: deny cancel appointment confirmation
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: cancel_appointment
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: cancel_appointment
+      - action: action_cancel_appointment
+      - intent: provide_date # Input ngày để tìm lịch
+      - slot_was_set:
+          - appointment_date: "19/10/2025"
+      - intent: select_appointment
+      - slot_was_set:
+          - selected_appointment_id: "LH001"
+      - action: action_confirm_cancel # Hiển thị confirm hủy
+      - intent: deny # User deny hủy
+      - action: action_handle_deny
+      - active_loop: null
+      - slot_was_set:
+          - current_task: null
+      - action: utter_goodbye # Hoặc quay về menu
+
+  # Story: Deny during book appointment form (hủy giữa chừng form)
+  - story: deny during book appointment form
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: book_appointment
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: book_appointment
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi khoa
+      - intent: deny # User deny/hủy giữa form (ví dụ: "thôi không đặt nữa")
+      - action: action_handle_deny
+      - active_loop: null
+      - slot_was_set:
+          - current_task: null
+      - action: utter_ask_intent # Hỏi user muốn làm gì tiếp theo
+
+  # Story: Deny during recommend doctor form (hủy giữa chừng recommend)
+  - story: deny during recommend doctor form
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: request_doctor
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: request_doctor
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+      - intent: deny # User deny cung cấp triệu chứng
+      - action: action_handle_deny
+      - active_loop: null
+      - slot_was_set:
+          - current_task: null
+      - action: utter_greet # Quay về menu
+
+  # Story: Deny general (không trong form cụ thể, ví dụ sau greet)
+  - story: general deny after greet
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: book_appointment
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: book_appointment
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: deny # User ngay lập tức deny
+      - action: action_handle_deny
+      - slot_was_set:
+          - current_task: null
+      - action: utter_ask_intent # Hỏi lại intent
