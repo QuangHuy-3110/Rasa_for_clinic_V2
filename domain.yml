@@ -14,12 +14,14 @@ intents:
   - choose_doctor_name
   - provide_time
   - provide_date
-  # - search_doctor_info
   - explain_specialty
-  - ask_doctor_info # ← THÊM intent mới
+  - ask_doctor_info
+  - list_doctors_by_specialty
   - cancel_appointment
   - select_appointment
+  - provide_cancel_date
   - nlu_fallback
+  - out_of_scope # ← THÊM intent mới
 
 entities:
   - symptom
@@ -47,7 +49,7 @@ slots:
     mappings:
       - type: custom
 
-  just_asked_doctor_info: # ← THÊM slot mới
+  just_asked_doctor_info:
     type: bool
     initial_value: false
     influence_conversation: true
@@ -89,6 +91,10 @@ slots:
     mappings:
       - type: from_entity
         entity: date
+      - type: from_text
+        intent:
+          - provide_cancel_date
+          - provide_date
       - type: custom
 
   prescription_date:
@@ -97,6 +103,27 @@ slots:
     mappings:
       - type: from_text
       - type: custom
+        not_intent:
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - provide_date
+          - provide_time
+          - provide_decription
+          - provide_medical_info
+          - choose_doctor_name
+          - book_with_doctor
+          - explain_specialty
+          - ask_doctor_info
+          - list_doctors_by_specialty
+          - cancel_appointment
+          - provide_cancel_date
+          - select_appointment
+          - out_of_scope # ← THÊM vào not_intent
 
   doctor_name:
     type: text
@@ -124,8 +151,12 @@ slots:
           - choose_doctor_name
           - book_with_doctor
           - explain_specialty
-          - ask_doctor_info # ← THÊM để block extract khi interruption
+          - ask_doctor_info
           - list_doctors_by_specialty
+          - cancel_appointment
+          - provide_cancel_date
+          - select_appointment
+          - out_of_scope # ← THÊM vào not_intent
 
   appointment_time:
     type: text
@@ -151,8 +182,12 @@ slots:
           - provide_time
           - book_with_doctor
           - explain_specialty
-          - ask_doctor_info # ← THÊM
+          - ask_doctor_info
           - list_doctors_by_specialty
+          - cancel_appointment
+          - provide_cancel_date
+          - select_appointment
+          - out_of_scope # ← THÊM vào not_intent
       - type: custom
 
   decription:
@@ -192,8 +227,12 @@ slots:
           - provide_medical_info
           - provide_specialty
           - book_with_doctor
-          - ask_doctor_info # ← THÊM
+          - ask_doctor_info
           - list_doctors_by_specialty
+          - cancel_appointment
+          - provide_cancel_date
+          - select_appointment
+          - out_of_scope # ← THÊM vào not_intent
 
   date:
     type: text
@@ -217,8 +256,12 @@ slots:
           - provide_date
           - book_with_doctor
           - explain_specialty
-          - ask_doctor_info # ← THÊM
+          - ask_doctor_info
           - list_doctors_by_specialty
+          - cancel_appointment
+          - provide_cancel_date
+          - select_appointment
+          - out_of_scope # ← THÊM vào not_intent
       - type: custom
 
   selected_appointment_id:
@@ -230,6 +273,9 @@ slots:
       - type: custom
 
 responses:
+  utter_select_appointment:
+    - text: "Vui lòng chọn mã số lịch hẹn bạn muốn hủy từ danh sách:"
+
   utter_greet:
     - text: "Xin chào! Tôi là chatbot hỗ trợ phòng khám. Bạn cần gì hôm nay?"
       buttons:
@@ -243,6 +289,31 @@ responses:
   utter_goodbye:
     - text: "Tạm biệt! Chúc bạn sức khỏe."
 
+  # ← THÊM response cho out_of_scope
+  utter_out_of_scope:
+    - text: "Xin lỗi, tôi chưa được đào tạo để trả lời câu hỏi này. Tôi chỉ có thể hỗ trợ bạn với:\n• Đề xuất bác sĩ phù hợp\n• Đặt lịch hẹn khám\n• Hủy lịch hẹn\n• Tra cứu thông tin bác sĩ và chuyên khoa\n\nBạn có muốn tôi giúp gì trong số những việc trên không?"
+      buttons:
+        - title: "Đề xuất bác sĩ"
+          payload: "/request_doctor"
+        - title: "Đặt lịch hẹn"
+          payload: "/book_appointment"
+        - title: "Hủy lịch hẹn"
+          payload: "/cancel_appointment"
+    - text: "Rất tiếc, tôi không thể trả lời câu hỏi này. Tôi là chatbot chuyên về đặt lịch khám bệnh và tư vấn bác sĩ. Bạn có thể hỏi tôi về:\n✓ Triệu chứng bệnh để gợi ý bác sĩ\n✓ Đặt lịch khám với bác sĩ\n✓ Hủy lịch hẹn\n✓ Thông tin bác sĩ và chuyên khoa\n\nBạn muốn làm gì tiếp theo?"
+      buttons:
+        - title: "Tìm bác sĩ"
+          payload: "/request_doctor"
+        - title: "Đặt lịch"
+          payload: "/book_appointment"
+    - text: "Tôi chưa được lập trình để xử lý yêu cầu này. Hiện tại tôi chỉ hỗ trợ:\n🩺 Đề xuất bác sĩ dựa trên triệu chứng\n📅 Đặt lịch hẹn khám\n❌ Hủy lịch hẹn\n📋 Tra cứu thông tin bác sĩ/chuyên khoa\n\nVui lòng chọn một trong các chức năng trên."
+      buttons:
+        - title: "Đề xuất bác sĩ"
+          payload: "/request_doctor"
+        - title: "Đặt lịch hẹn"
+          payload: "/book_appointment"
+        - title: "Hủy lịch hẹn"
+          payload: "/cancel_appointment"
+
   utter_ask_symptoms:
     - text: "Bạn đang gặp triệu chứng gì? Hãy mô tả chi tiết (có thể liệt kê nhiều, ví dụ: 'đau đầu, sốt')."
 
@@ -252,7 +323,7 @@ responses:
   utter_explain_specialty:
     - text: "Bạn muốn tìm hiểu về chuyên khoa nào? Vui lòng nhập tên chuyên khoa."
 
-  utter_ask_doctor_info: # ← THÊM response mới
+  utter_ask_doctor_info:
     - text: "Bạn muốn xem thông tin của bác sĩ nào? Vui lòng nhập tên bác sĩ."
 
   utter_specialty_not_found:
@@ -272,6 +343,9 @@ responses:
 
   utter_ask_date:
     - text: "Bạn muốn đặt lịch vào ngày nào? Vui lòng cho biết ngày cụ thể."
+
+  utter_ask_appointment_date:
+    - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY)."
 
   utter_confirm:
     - text: "Bạn có muốn đặt lịch với bác sĩ này không?"
@@ -389,6 +463,11 @@ responses:
           payload: "/cancel_appointment"
 
 forms:
+  cancel_appointment_form:
+    required_slots:
+      - appointment_date
+      - selected_appointment_id
+
   recommend_doctor_form:
     required_slots:
       - symptoms
@@ -413,6 +492,7 @@ actions:
   - action_view_doctor_detail
   - action_search_specialty
   - action_cancel_appointment
+  - validate_cancel_appointment_form
   - action_confirm_cancel
   - action_perform_cancel
   - action_search_prescription
@@ -423,9 +503,10 @@ actions:
   - action_deactivate_my_form
   - action_stop_form
   - action_explain_specialty_in_form
-  - action_show_doctor_info_in_form # ← THÊM action mới
+  - action_show_doctor_info_in_form
   - action_list_doctors_in_form
   - action_handle_deny
+  - action_handle_out_of_scope # ← THÊM action mới
 
 session_config:
   session_expiration_time: 60

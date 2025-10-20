@@ -1,6 +1,42 @@
 version: "3.1"
 
 rules:
+  # ===================== XỬ LÝ OUT-OF-SCOPE (Ưu tiên cao) ============================
+  - rule: Handle out of scope questions
+    steps:
+      - intent: out_of_scope
+      - action: action_handle_out_of_scope
+
+  - rule: Handle out of scope in any form
+    condition:
+      - active_loop: book_appointment_form
+    steps:
+      - intent: out_of_scope
+      - action: action_handle_out_of_scope
+      # Không deactivate form
+
+  - rule: Handle out of scope in cancel form
+    condition:
+      - active_loop: cancel_appointment_form
+    steps:
+      - intent: out_of_scope
+      - action: action_handle_out_of_scope
+      # Không deactivate form
+
+  - rule: Handle out of scope in recommend form
+    condition:
+      - active_loop: recommend_doctor_form
+    steps:
+      - intent: out_of_scope
+      - action: action_handle_out_of_scope
+      # Không deactivate form
+
+  # ===================== XỬ LÝ NLU FALLBACK ============================
+  - rule: Handle NLU fallback
+    steps:
+      - intent: nlu_fallback
+      - action: action_default_fallback
+
   # ===================== Đề xuất bác sĩ ============================
   - rule: Activate recommend doctor form
     steps:
@@ -60,7 +96,21 @@ rules:
           - just_explained: false
       - action: book_appointment_form
       - active_loop: book_appointment_form
-    wait_for_user_input: false # ← Thêm để rule chạy ngay
+    wait_for_user_input: false
+
+  - rule: Handle explain interruption in cancel_appointment
+    condition:
+      - slot_was_set:
+          - just_explained: true
+      - slot_was_set:
+          - current_task: cancel_appointment
+    steps:
+      - action: action_explain_specialty_in_form
+      - slot_was_set:
+          - just_explained: false
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+    wait_for_user_input: false
 
   - rule: Explain specialty
     steps:
@@ -80,7 +130,21 @@ rules:
           - just_asked_doctor_info: false
       - action: book_appointment_form
       - active_loop: book_appointment_form
-    wait_for_user_input: false # ← Thêm để rule chạy ngay
+    wait_for_user_input: false
+
+  - rule: Handle doctor info interruption in cancel_appointment
+    condition:
+      - slot_was_set:
+          - just_asked_doctor_info: true
+      - slot_was_set:
+          - current_task: cancel_appointment
+    steps:
+      - action: action_show_doctor_info_in_form
+      - slot_was_set:
+          - just_asked_doctor_info: false
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+    wait_for_user_input: false
 
   - rule: Show doctor info
     steps:
@@ -102,10 +166,75 @@ rules:
       - active_loop: book_appointment_form
     wait_for_user_input: false
 
+  - rule: Handle list doctors interruption in cancel_appointment
+    condition:
+      - slot_was_set:
+          - just_listed_doctors: true
+      - slot_was_set:
+          - current_task: cancel_appointment
+    steps:
+      - action: action_list_doctors_in_form
+      - slot_was_set:
+          - just_listed_doctors: false
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+    wait_for_user_input: false
+
   - rule: List doctors by specialty
     steps:
-      - intent: search_doctor_info
+      - intent: list_doctors_by_specialty
       - action: action_list_doctors_in_form
+
+  # ===================== Hủy lịch khám ============================
+  - rule: Activate cancel appointment form
+    steps:
+      - intent: cancel_appointment
+      - action: action_cancel_appointment
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+
+  - rule: Submit cancel appointment form and confirm
+    condition:
+      - active_loop: cancel_appointment_form
+    steps:
+      - action: cancel_appointment_form
+      - active_loop: null
+      - action: action_confirm_cancel
+
+  - rule: Perform cancel after affirm
+    condition:
+      - slot_was_set:
+          - selected_appointment_id:
+      - slot_was_set:
+          - current_task: cancel_appointment
+    steps:
+      - intent: affirm
+      - action: action_perform_cancel
+
+  - rule: Reset cancel on deny
+    condition:
+      - slot_was_set:
+          - current_task: cancel_appointment
+    steps:
+      - intent: deny
+      - action: action_handle_deny
+
+  # ===================== Xác nhận đặt lịch ============================
+  - rule: Submit booking after affirm
+    condition:
+      - slot_was_set:
+          - current_task: book_appointment
+    steps:
+      - intent: affirm
+      - action: action_submit_booking
+
+  - rule: Reset booking on deny
+    condition:
+      - slot_was_set:
+          - current_task: book_appointment
+    steps:
+      - intent: deny
+      - action: action_handle_deny
 
   # ===================== Misc ============================
   - rule: greet

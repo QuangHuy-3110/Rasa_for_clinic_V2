@@ -323,27 +323,58 @@ nlu:
       - cho tôi xem danh sách bác sĩ
 
   # ==================================== Hủy lịch khám =============================================================
-  - intent: select_appointment
-    examples: |
-      - chọn lịch [LH001](appointment_id)
-      - select appointment with id [LH002](appointment_id)
-      - hủy lịch [LH003](appointment_id)
-
+  # ============ Intent: cancel_appointment ============
   - intent: cancel_appointment
     examples: |
       - tôi muốn hủy lịch khám
-      - chọn hủy lịch khám
-      - hủy lịch khám
-      - hủy lịch khám giúp tôi
-      - tôi cần hủy lịch khám
-      - tôi muốn bạn hủy lịch khám giúp tôi
-      - tôi cần bạn hủy lịch khám giúp tôi
-      - tôi muốn bạn giúp tôi hủy lịch khám
-      - tôi cần bạn giúp tôi hủy lịch khám
-      - tôi muốn bạn hỗ trợ tôi hủy lịch khám
-      - tôi cần bạn hỗ trợ tôi hủy lịch khám
-      - hỗ trợ tôi hủy lịch khám với
-      - giúp tôi hủy lịch khám với
+      - hủy lịch hẹn
+      - hủy cuộc hẹn
+      - hủy lịch
+      - tôi không thể đến khám được
+      - tôi muốn hủy lịch đã đặt
+      - hủy lịch khám bệnh
+      - hủy đặt lịch
+      - muốn hủy lịch
+      - làm sao để hủy lịch
+      - tôi cần hủy lịch hẹn
+      - hủy lịch ngày mai
+      - không đi khám được nữa
+      - hủy lịch đặt trước
+      - tôi bận không đến được
+
+  # ============ Intent: provide_cancel_date ============
+  - intent: provide_cancel_date
+    examples: |
+      - [21/10/2025](date)
+      - [22/10/2025](date)
+      - [23/10/2025](date)
+      - ngày [20/10/2025](date)
+      - lịch ngày [25/10/2025](date)
+      - hủy lịch ngày [21/10/2025](date)
+      - tôi muốn hủy lịch ngày [22/10/2025](date)
+      - [19/10/2025](date)
+      - ngày [18/10/2025](date) ạ
+      - vào ngày [24/10/2025](date)
+      - lịch hẹn ngày [26/10/2025](date)
+
+  # ============ Intent: select_appointment ============
+  - intent: select_appointment
+    examples: |
+      - chọn lịch này
+      - tôi chọn lịch đầu tiên
+      - lịch thứ hai
+      - lịch số 1
+      - lịch số 2
+      - chọn lịch 1
+      - chọn lịch 2
+      - tôi chọn lịch thứ nhất
+      - lịch với bác sĩ A
+      - lịch 15:00
+      - lịch buổi chiều
+      - chọn lịch buổi sáng
+      - [LH0001](appointment_id)
+      - tôi chọn [LH0002](appointment_id)
+      - đặt lịch [LH0003](appointment_id)
 
   - intent: affirm
     examples: |
@@ -366,12 +397,163 @@ nlu:
       - tầm bậy
       - bỏ
 
+  - intent: out_of_scope
+    examples: |
+      - bạn tên gì?
+      - bạn là ai?
+      - bạn được tạo ra bởi ai?
+      - bạn là chatbot gì?
+      - thời tiết hôm nay thế nào?
+      - trời mưa không?
+      - nhiệt độ bao nhiêu độ?
+      - bây giờ là mấy giờ?
+      - hôm nay ngày mấy?
+      - kể cho tôi một câu chuyện
+      - kể truyện cười đi
+      - hát một bài hát
+      - cho tôi nghe nhạc
+      - bạn có yêu tôi không?
+      - bạn thích gì?
+      - sở thích của bạn là gì?
+      - bạn ăn gì?
+      - bạn có đói không?
+      - đặt pizza cho tôi
+      - gọi taxi giúp tôi
+      - book khách sạn
+      - đặt vé máy bay
+      - tìm nhà hàng gần đây
+      - giá vàng hôm nay
+      - tỷ giá USD
+      - kết quả bóng đá
+      - ai thắng trận đấu?
+      - tin tức hôm nay
+      - tin tức thế giới
+      - chính trị việt nam
+      - giá cổ phiếu
+      - bitcoin giá bao nhiêu?
+      - làm thế nào để học python?
+      - cách nấu phở
+      - công thức làm bánh
+      - sửa máy tính
+      - cài đặt phần mềm
+      - hack facebook
+      - tải game miễn phí
+      - xem phim ở đâu?
+      - phim hay đề xuất
+      - đọc báo giúp tôi
+      - dịch tiếng anh
+      - translate sang tiếng việt
+      - giải toán giúp tôi
+      - làm bài tập hộ tôi
+      - viết luận văn
+      - tôi muốn mua thuốc
+      - có bán thuốc không?
+      - giá thuốc bao nhiêu?
+      - tư vấn sức khỏe tâm thần
+      - tôi bị trầm cảm
+      - tôi muốn tự tử
+      - bạn có thể chẩn đoán bệnh không?
+      - tôi bị ung thư không?
+      - tôi bị covid không?
+      - đơn thuốc của tôi
+      - kê đơn thuốc cho tôi
+      - thuốc nào tốt nhất?
+      - tôi nên uống thuốc gì?
+      - liều lượng thuốc thế nào?
+      - tác dụng phụ của thuốc
+      - đặt xe cứu thương
+      - gọi xe cấp cứu
+      - số điện thoại bệnh viện
+      - địa chỉ phòng khám
+      - giờ làm việc phòng khám
+      - phòng khám ở đâu?
+      - chi phí khám bệnh
+      - giá khám bao nhiêu?
+      - bảo hiểm y tế có được không?
+      - thanh toán thế nào?
+      - có nhận bảo hiểm không?
+      - xem kết quả xét nghiệm
+      - kết quả khám bệnh
+      - hồ sơ bệnh án của tôi
+      - lịch sử khám bệnh
+      - tôi đã khám gì?
+      - bác sĩ nào đã khám tôi?
+      - giới thiệu phòng khám khác
+      - bệnh viện nào tốt?
+      - đăng ký thành viên
+      - tạo tài khoản
+      - đổi mật khẩu
+      - quên mật khẩu
+      - cập nhật thông tin
+      - chỉnh sửa profile
+      - xóa tài khoản
+      - liên hệ quản trị viên
+      - khiếu nại dịch vụ
+      - phản hồi về bác sĩ
+      - bác sĩ nào giỏi nhất?
+      - bác sĩ nào xấu nhất?
+      - đánh giá bác sĩ
+      - review phòng khám
+      - mã giảm giá
+      - có khuyến mãi không?
+      - voucher khám bệnh
+      - ưu đãi cho khách hàng mới
+      - bạn có thể làm gì?
+      - bạn giúp được gì cho tôi?
+      - chức năng của bạn
+      - hướng dẫn sử dụng
+      - làm sao để dùng chatbot?
+      - tôi không biết làm thế nào
+      - trợ giúp
+      - help me
+      - what can you do?
+      - who are you?
+      - what is your name?
+      - how old are you?
+      - where are you from?
+      - chào buổi sáng
+      - chúc ngủ ngon
+      - have a good day
+      - see you later
+      - talk to you soon
+      - bạn khỏe không?
+      - hôm nay thế nào?
+      - cảm ơn bạn nhiều
+      - thanks a lot
+      - you're welcome
+      - no problem
+      - xin lỗi
+      - sorry
+      - excuse me
+      - đùa thôi
+      - just kidding
+      - tôi chỉ đùa vậy
+      - okay
+      - alright
+      - sure
+      - maybe
+      - I don't know
+      - whatever
+      - tùy bạn
+      - không biết nữa
+      - thôi kệ đi
+
   - intent: nlu_fallback
     examples: |
-      - 
-      - ? 
-      - ...
-      - huh?
-      - tôi không biết
-      - gì vậy
-      - bạn nói gì?
+      - asdfghjkl
+      - 123456789
+      - ??????
+      - !@#$%^&*()
+      - làsdfkjal
+      - ajsdlkfjasdf
+      - blah blah blah
+      - xyz abc def
+      - test test test
+      - hello hello hello
+      - ừ
+      - à
+      - ờ
+      - ừm
+      - uh huh
+      - hmmm
+      - errr

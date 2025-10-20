@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 import re  # Thêm để parse payload fallback
 from rasa_sdk.types import DomainDict
-from rasa_sdk.events import SlotSet
+from datetime import datetime, timedelta
 
 
 
@@ -39,6 +39,403 @@ WRONG_INPUT_KEYWORDS = {
 
 # Global variable cho mã bệnh nhân (có thể set động từ slot hoặc config sau)
 MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
+
+# Thay thế phần ValidateCancelAppointmentForm và các action liên quan
+
+class ActionHandleOutOfScope(Action):
+    """
+    Action xử lý các intent không được hỗ trợ (out-of-scope).
+    Có thể được trigger trong bất kỳ context nào, kể cả khi đang trong form.
+    """
+    def name(self) -> Text:
+        return "action_handle_out_of_scope"
+
+    def run(
+        self, 
+        dispatcher: CollectingDispatcher, 
+        tracker: Tracker, 
+        domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        
+        # Kiểm tra xem có đang trong form không
+        active_loop = tracker.active_loop.get('name') if tracker.active_loop else None
+        current_task = tracker.get_slot("current_task")
+        
+        # Thông báo phù hợp với context
+        if active_loop:
+            # Đang trong form
+            message = (
+                "Xin lỗi, tôi không thể trả lời câu hỏi này lúc này. "
+                "Tôi đang giúp bạn hoàn tất yêu cầu hiện tại. "
+                "Bạn có thể hỏi lại sau khi hoàn tất, hoặc nói 'hủy' để dừng lại."
+            )
+            dispatcher.utter_message(text=message)
+            
+            # Giữ nguyên form, không deactivate
+            return []
+        
+        else:
+            # Không trong form - utter response chi tiết hơn
+            dispatcher.utter_message(response="utter_out_of_scope")
+            
+            # Reset current_task nếu có
+            if current_task:
+                return [SlotSet("current_task", None)]
+            
+            return []
+
+
+class ActionDefaultFallback(Action):
+    """
+    Action xử lý khi NLU không thể phân loại intent (fallback).
+    Khác với out_of_scope: đây là khi bot "không hiểu", 
+    còn out_of_scope là khi bot hiểu nhưng không hỗ trợ.
+    """
+    def name(self) -> Text:
+        return "action_default_fallback"
+
+    def run(
+        self, 
+        dispatcher: CollectingDispatcher, 
+        tracker: Tracker, 
+        domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        
+        active_loop = tracker.active_loop.get('name') if tracker.active_loop else None
+        
+        if active_loop:
+            # Trong form - yêu cầu làm rõ
+            message = (
+                "Xin lỗi, tôi không hiểu rõ ý bạn. "
+                "Vui lòng trả lời câu hỏi hiện tại hoặc nói 'bỏ' để dừng lại."
+            )
+            dispatcher.utter_message(text=message)
+            return []
+        
+        else:
+            # Ngoài form - gợi ý chức năng
+            message = (
+                "Xin lỗi, tôi không hiểu yêu cầu của bạn. "
+                "Tôi có thể giúp bạn:\n"
+                "• Đề xuất bác sĩ dựa trên triệu chứng\n"
+                "• Đặt lịch hẹn khám bệnh\n"
+                "• Hủy lịch hẹn\n"
+                "• Tra cứu thông tin bác sĩ và chuyên khoa\n\n"
+                "Bạn muốn làm gì?"
+            )
+            dispatcher.utter_message(
+                text=message,
+                buttons=[
+                    {"title": "Đề xuất bác sĩ", "payload": "/request_doctor"},
+                    {"title": "Đặt lịch hẹn", "payload": "/book_appointment"},
+                    {"title": "Hủy lịch hẹn", "payload": "/cancel_appointment"}
+                ]
+            )
+            return [SlotSet("current_task", None)]
+
+
+class ValidateCancelAppointmentForm(FormValidationAction):
+    """Validation cho cancel_appointment_form với hỗ trợ interruption"""
+    
+    def name(self) -> Text:
+        return "validate_cancel_appointment_form"
+
+    def _handle_form_interruption(self, dispatcher, tracker):
+        """Xử lý interruption trong cancel form"""
+        latest_message = tracker.latest_message
+        
+        if hasattr(latest_message, 'intent'):
+            latest_intent = latest_message.intent.get('name')
+        else:
+            latest_intent = latest_message.get('intent', {}).get('name')
+
+        # === Xử lý explain_specialty ===
+        if latest_intent == "explain_specialty":
+            explain_action = ActionExplainSpecialtyInForm()
+            explain_action.run(dispatcher, tracker, {})
+            return {
+                "specialty": tracker.get_slot("specialty"),
+                "just_explained": False,
+            }
+        
+        # === Xử lý ask_doctor_info ===
+        if latest_intent == "ask_doctor_info":
+            info_action = ActionShowDoctorInfoInForm()
+            info_action.run(dispatcher, tracker, {})
+            return {
+                "doctor_name": tracker.get_slot("doctor_name"),
+                "just_asked_doctor_info": False,
+            }
+        
+        # === Xử lý list_doctors_by_specialty ===
+        if latest_intent == "list_doctors_by_specialty":
+            list_action = ActionListDoctorsInForm()
+            list_action.run(dispatcher, tracker, {})
+            return {
+                "specialty": tracker.get_slot("specialty"),
+                "just_listed_doctors": False,
+            }
+        
+        return {}
+
+    def validate_appointment_date(
+        self, 
+        slot_value: Any, 
+        dispatcher: CollectingDispatcher, 
+        tracker: Tracker, 
+        domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
+        """Validate ngày hủy lịch"""
+        
+        # === CHECK INTERRUPTION TRƯỚC ===
+        interruption_result = self._handle_form_interruption(dispatcher, tracker)
+        if interruption_result:
+            return interruption_result
+        
+        # === VALIDATION BÌNH THƯỜNG ===
+        if not slot_value:
+            dispatcher.utter_message(text="Vui lòng cung cấp ngày bạn muốn hủy lịch hẹn (DD/MM/YYYY).")
+            return {"appointment_date": None}
+
+        date_input = str(slot_value).strip()
+        
+        # Validate format
+        try:
+            parsed_date = datetime.strptime(date_input, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+            return {"appointment_date": None}
+
+        # Query DB để lấy danh sách lịch hẹn trong ngày
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT lh.mahen, lh.ngaythangnam, lh.khunggio, bs.tenBS, ck.tenCK
+            FROM lichhen lh
+            JOIN bacsi bs ON lh.maBS = bs.maBS
+            JOIN chuyenkhoa ck ON lh.maCK = ck.maCK
+            WHERE lh.maBN = %s AND DATE(lh.ngaythangnam) = %s AND lh.trangthai != 'hủy'
+            ORDER BY lh.khunggio
+            """
+            cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+            appointments = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return {"appointment_date": None}
+
+        if not appointments:
+            dispatcher.utter_message(text=f"Không có lịch hẹn nào trong ngày {date_input}. Vui lòng chọn ngày khác.")
+            buttons = [
+                {"title": "Chọn ngày khác", "payload": "/cancel_appointment"},
+                {"title": "Quay lại menu", "payload": "/greet"}
+            ]
+            dispatcher.utter_message(text="Bạn có muốn thử ngày khác không?", buttons=buttons)
+            return {"appointment_date": None}
+
+        # Hiển thị danh sách lịch hẹn
+        dispatcher.utter_message(text=f"📋 **Danh sách lịch hẹn ngày {date_input}:**")
+        
+        for idx, appt in enumerate(appointments, 1):
+            appt_text = f"{idx}. 🩺 **Bác sĩ {appt['tenBS']}** ({appt['tenCK']})\n   - Giờ: {appt['khunggio']}\n   - Mã lịch: {appt['mahen']}"
+            dispatcher.utter_message(
+                text=appt_text,
+                buttons=[
+                    {
+                        "title": f"Chọn lịch này",
+                        "payload": f"/select_appointment{{\"appointment_id\":\"{appt['mahen']}\"}}"
+                    }
+                ]
+            )
+        
+        dispatcher.utter_message(text=f"\nTổng cộng: {len(appointments)} lịch hẹn. Vui lòng chọn lịch cần hủy.")
+        
+        # Trả về với appointment_date đã validate
+        return {"appointment_date": date_input}
+
+    def validate_selected_appointment_id(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
+        """Validate mã lịch hẹn được chọn"""
+        
+        # === CHECK INTERRUPTION TRƯỚC ===
+        interruption_result = self._handle_form_interruption(dispatcher, tracker)
+        if interruption_result:
+            return interruption_result
+        
+        if not slot_value:
+            dispatcher.utter_message(text="Vui lòng chọn một lịch hẹn để hủy.")
+            return {"selected_appointment_id": None}
+        
+        # Validate appointment_id tồn tại trong DB
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT lh.mahen, lh.ngaythangnam, lh.khunggio, bs.tenBS, ck.tenCK
+            FROM lichhen lh
+            JOIN bacsi bs ON lh.maBS = bs.maBS
+            JOIN chuyenkhoa ck ON lh.maCK = ck.maCK
+            WHERE lh.mahen = %s AND lh.maBN = %s AND lh.trangthai != 'hủy'
+            """
+            cursor.execute(query, (slot_value, MA_BN_GLOBAL))
+            appointment = cursor.fetchone()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return {"selected_appointment_id": None}
+
+        if not appointment:
+            dispatcher.utter_message(text="Không tìm thấy lịch hẹn này hoặc lịch đã bị hủy. Vui lòng chọn lại.")
+            return {"selected_appointment_id": None}
+
+        # Hiển thị thông tin lịch hẹn đã chọn
+        confirm_text = f"""
+        ✅ **Đã chọn lịch hẹn:**
+
+        - Mã lịch: {appointment['mahen']}
+        - Bác sĩ: {appointment['tenBS']}
+        - Chuyên khoa: {appointment['tenCK']}
+        - Ngày: {appointment['ngaythangnam']}
+        - Giờ: {appointment['khunggio']}
+        """
+        dispatcher.utter_message(text=confirm_text)
+
+        return {"selected_appointment_id": slot_value}
+    
+
+class ActionCancelAppointmentUpdated(Action):
+    """Action khởi tạo cancel form - CHỈ set context, KHÔNG hiển thị gì"""
+    
+    def name(self) -> Text:
+        return "action_cancel_appointment"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        # CHỈ set context, KHÔNG utter message
+        return [
+            SlotSet("current_task", "cancel_appointment"),
+            SlotSet("appointment_date", None),
+            SlotSet("selected_appointment_id", None)
+        ]
+
+
+class ActionConfirmCancelUpdated(Action):
+    """Action hiển thị xác nhận hủy lịch (sau khi form hoàn tất)"""
+    
+    def name(self) -> Text:
+        return "action_confirm_cancel"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        selected_id = tracker.get_slot("selected_appointment_id")
+        
+        if not selected_id:
+            dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
+            return []
+
+        # Query thông tin lịch hẹn để hiển thị confirm
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            query = """
+            SELECT lh.mahen, lh.ngaythangnam, lh.khunggio, bs.tenBS, ck.tenCK
+            FROM lichhen lh
+            JOIN bacsi bs ON lh.maBS = bs.maBS
+            JOIN chuyenkhoa ck ON lh.maCK = ck.maCK
+            WHERE lh.mahen = %s AND lh.maBN = %s AND lh.trangthai != 'hủy'
+            """
+            cursor.execute(query, (selected_id, MA_BN_GLOBAL))
+            appointment = cursor.fetchone()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+            return []
+
+        if not appointment:
+            dispatcher.utter_message(text="Không tìm thấy lịch hẹn này hoặc lịch đã bị hủy.")
+            return []
+
+        # Hiển thị confirm message
+        confirm_text = f"""
+            📋 **Xác nhận hủy lịch hẹn**
+
+            - Mã lịch: {appointment['mahen']}
+            - Bác sĩ: {appointment['tenBS']}
+            - Chuyên khoa: {appointment['tenCK']}
+            - Ngày: {appointment['ngaythangnam']}
+            - Giờ: {appointment['khunggio']}
+
+            Bạn có chắc chắn muốn hủy lịch hẹn này không?
+        """
+        
+        dispatcher.utter_message(
+            text=confirm_text,
+            buttons=[
+                {"title": "Xác nhận hủy", "payload": "/affirm"},
+                {"title": "Không hủy", "payload": "/deny"}
+            ]
+        )
+        
+        return []
+
+
+class ActionPerformCancelUpdated(Action):
+    """Action thực hiện hủy lịch sau khi affirm"""
+    
+    def name(self) -> Text:
+        return "action_perform_cancel"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        selected_id = tracker.get_slot("selected_appointment_id")
+        
+        if not selected_id:
+            dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
+            return []
+
+        # Update DB: Set trangthai = 'hủy'
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            query = "UPDATE lichhen SET trangthai = 'hủy' WHERE mahen = %s AND maBN = %s"
+            cursor.execute(query, (selected_id, MA_BN_GLOBAL))
+            conn.commit()
+            rows_affected = cursor.rowcount
+            cursor.close()
+            conn.close()
+            
+            if rows_affected > 0:
+                dispatcher.utter_message(text=f"✅ Đã hủy thành công lịch hẹn **{selected_id}**.")
+            else:
+                dispatcher.utter_message(text="Không tìm thấy lịch hẹn để hủy hoặc lịch đã bị hủy trước đó.")
+        except Error as e:
+            dispatcher.utter_message(text=f"❌ Lỗi cập nhật DB: {e}")
+
+        # Offer next action
+        buttons = [
+            {"title": "Hủy lịch khác", "payload": "/cancel_appointment"},
+            {"title": "Quay lại menu", "payload": "/greet"}
+        ]
+        dispatcher.utter_message(text="Bạn có muốn làm gì tiếp theo?", buttons=buttons)
+        
+        # Reset slots
+        return [
+            SlotSet("selected_appointment_id", None),
+            SlotSet("appointment_date", None),
+            SlotSet("current_task", None)
+        ]
 
 class ActionListDoctorsInForm(Action):
     def name(self) -> Text:
@@ -602,6 +999,62 @@ class ValidateBookAppointmentForm(FormValidationAction):
 
         return {"specialty": slot_value.title()}
 
+    # def validate_doctor_name(
+    #     self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    # ) -> Dict[Text, Any]:
+    #     # ===== CHECK INTERRUPTION TRƯỚC =====
+    #     interruption_result = self._handle_form_interruption(dispatcher, tracker)
+    #     if interruption_result:
+    #         # Interruption đã xử lý và return kết quả với flag reset
+    #         return interruption_result
+        
+    #     # ===== VALIDATION BÌNH THƯỜNG =====
+    #     if not slot_value:
+    #         dispatcher.utter_message(text="Vui lòng chọn bác sĩ.")
+    #         return {"doctor_name": None}
+
+    #     doctor_input = str(slot_value).strip()
+    #     if self._detect_wrong_input('doctor_name', doctor_input):
+    #         dispatcher.utter_message(text="Đó có vẻ là thông tin khác. Vui lòng nhập tên bác sĩ hoặc chọn từ danh sách.")
+    #         return {"doctor_name": None}
+
+    #     specialty = tracker.get_slot("specialty")
+    #     try:
+    #         conn = mysql.connector.connect(**DB_CONFIG)
+    #         cursor = conn.cursor(dictionary=True)
+    #         if specialty:
+    #             cursor.execute("""
+    #                 SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
+    #                 FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
+    #                 JOIN chuyenkhoa ck ON cm.maCK = ck.maCK WHERE ck.tenCK = %s
+    #             """, (specialty,))
+    #         else:
+    #             cursor.execute("""
+    #                 SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
+    #                 FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
+    #                 JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+    #             """)
+    #         doctors = cursor.fetchall()
+    #         cursor.close()
+    #         conn.close()
+    #     except Error as e:
+    #         dispatcher.utter_message(text=f"Lỗi DB: {e}")
+    #         return {"doctor_name": None}
+
+    #     matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
+    #     if not matched:
+    #         dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Các bác sĩ có sẵn:")
+    #         for doc in doctors[:3]:
+    #             dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
+    #         dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
+    #         return {"doctor_name": None}
+
+    #     doc = matched[0]
+    #     dispatcher.utter_message(
+    #         text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
+    #     )
+    #     return {"doctor_name": doc["tenBS"]}
+    
     def validate_doctor_name(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
@@ -638,10 +1091,10 @@ class ValidateBookAppointmentForm(FormValidationAction):
                     JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
                 """)
             doctors = cursor.fetchall()
-            cursor.close()
-            conn.close()
         except Error as e:
             dispatcher.utter_message(text=f"Lỗi DB: {e}")
+            cursor.close()
+            conn.close()
             return {"doctor_name": None}
 
         matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
@@ -650,14 +1103,108 @@ class ValidateBookAppointmentForm(FormValidationAction):
             for doc in doctors[:3]:
                 dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
             dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
+            cursor.close()
+            conn.close()
             return {"doctor_name": None}
 
         doc = matched[0]
         dispatcher.utter_message(
             text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
         )
+
+        # ===== FETCH DOCTOR'S SCHEDULE =====
+        try:
+            # Define the date range (today + 6 days)
+            today = datetime.now().date()
+            end_date = today + timedelta(days=6)
+            cursor.execute("""
+                SELECT ngaythangnam, giobatdau, gioketthuc, trangthai
+                FROM thoigiankham
+                WHERE maBS = %s AND ngaythangnam BETWEEN %s AND %s
+                ORDER BY ngaythangnam
+            """, (doc['maBS'], today, end_date))
+            schedule = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB khi lấy lịch làm việc: {e}")
+            return {"doctor_name": doc["tenBS"]}
+
+        # ===== GENERATE HTML SCHEDULE TABLE =====
+        if not schedule:
+            dispatcher.utter_message(text="Không có lịch làm việc cho bác sĩ này trong tuần tới.")
+            return {"doctor_name": doc["tenBS"]}
+
+        # Create HTML table
+        html_table = """
+        <style>
+            .schedule-table {
+                width: 100%;
+                max-width: 600px;
+                border-collapse: collapse;
+                font-family: Arial, sans-serif;
+                margin: 20px 0;
+            }
+            .schedule-table th, .schedule-table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            .schedule-table th {
+                background-color: #f2f2f2;
+                color: #333;
+            }
+            .schedule-table tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            .schedule-table tr:hover {
+                background-color: #f5f5f5;
+            }
+            @media screen and (max-width: 600px) {
+                .schedule-table th, .schedule-table td {
+                    font-size: 14px;
+                    padding: 6px;
+                }
+            }
+        </style>
+        <table class="schedule-table">
+            <thead>
+                <tr>
+                    <th>Ngày</th>
+                    <th>Giờ bắt đầu</th>
+                    <th>Giờ kết thúc</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+
+        # Generate table rows
+        for entry in schedule:
+            date_str = entry['ngaythangnam'].strftime('%Y-%m-%d')
+            start_time = entry['giobatdau'].strftime('%H:%M') if entry['giobatdau'] else 'N/A'
+            end_time = entry['gioketthuc'].strftime('%H:%M') if entry['gioketthuc'] else 'N/A'
+            status = entry['trangthai'] if entry['trangthai'] else 'N/A'
+            html_table += f"""
+                <tr>
+                    <td>{date_str}</td>
+                    <td>{start_time}</td>
+                    <td>{end_time}</td>
+                    <td>{status}</td>
+                </tr>
+            """
+
+        html_table += """
+            </tbody>
+        </table>
+        """
+
+        # Send the HTML table to the dispatcher
+        dispatcher.utter_message(text=f"Lịch làm việc của bác sĩ {doc['tenBS']} trong tuần tới:")
+        dispatcher.utter_message(text=html_table)
+
         return {"doctor_name": doc["tenBS"]}
-    
+
     def validate_any_slot(self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> Dict[Text, Any]:
         # Kiểm tra nếu latest intent là deny, thì dừng form ngay
         latest_intent = tracker.latest_message.get('intent', {}).get('name')
@@ -854,127 +1401,127 @@ class ActionSearchSpecialty(Action):
             FollowupAction("book_appointment_form")  # ← Force reactivate!
         ]
     
-class ActionCancelAppointment(Action):
-    def name(self) -> Text:
-        return "action_cancel_appointment"
+# class ActionCancelAppointment(Action):
+#     def name(self) -> Text:
+#         return "action_cancel_appointment"
 
-    def run(
-        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> List[Dict]:
-        SlotSet("current_task", "cancel_appointment")  # Set context
-        appointment_date = tracker.get_slot("appointment_date")
-        if not appointment_date:
-            dispatcher.utter_message(
-                text="Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY).",
-                buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
-            )
-            return [SlotSet("appointment_date", None)]
+#     def run(
+#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+#     ) -> List[Dict]:
+#         SlotSet("current_task", "cancel_appointment")  # Set context
+#         appointment_date = tracker.get_slot("appointment_date")
+#         if not appointment_date:
+#             dispatcher.utter_message(
+#                 text="Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY).",
+#                 buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
+#             )
+#             return [SlotSet("appointment_date", None)]
 
-        # Parse ngày (giả sử format %d/%m/%Y)
-        try:
-            parsed_date = datetime.strptime(appointment_date, '%d/%m/%Y').date()
-        except ValueError:
-            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
-            return [SlotSet("appointment_date", None)]
+#         # Parse ngày (giả sử format %d/%m/%Y)
+#         try:
+#             parsed_date = datetime.strptime(appointment_date, '%d/%m/%Y').date()
+#         except ValueError:
+#             dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+#             return [SlotSet("appointment_date", None)]
 
-        # Query MySQL: Lấy danh sách lịch hẹn của maBN trong ngày đó (trang_thai != 'hủy')
-        try:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            cursor = conn.cursor(dictionary=True)
-            query = """
-            SELECT lh.maLH, lh.ngaythangnam, lh.khunggio, bs.tenBS
-            FROM lichhen lh
-            JOIN bacsi bs ON lh.maBS = bs.maBS
-            WHERE lh.maBN = %s AND DATE(lh.ngaythangnam) = %s AND lh.trangthai != 'hủy'
-            ORDER BY lh.khunggio
-            """
-            cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
-            appointments = cursor.fetchall()
-            cursor.close()
-            conn.close()
-        except Error as e:
-            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
-            return [SlotSet("appointment_date", None)]
+#         # Query MySQL: Lấy danh sách lịch hẹn của maBN trong ngày đó (trang_thai != 'hủy')
+#         try:
+#             conn = mysql.connector.connect(**DB_CONFIG)
+#             cursor = conn.cursor(dictionary=True)
+#             query = """
+#             SELECT lh.mahen, lh.ngaythangnam, lh.khunggio, bs.tenBS
+#             FROM lichhen lh
+#             JOIN bacsi bs ON lh.maBS = bs.maBS
+#             WHERE lh.maBN = %s AND DATE(lh.ngaythangnam) = %s AND lh.trangthai != 'hủy'
+#             ORDER BY lh.khunggio
+#             """
+#             cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+#             appointments = cursor.fetchall()
+#             cursor.close()
+#             conn.close()
+#         except Error as e:
+#             dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+#             return [SlotSet("appointment_date", None)]
 
-        if not appointments:
-            dispatcher.utter_message(text=f"Không có lịch hẹn nào trong ngày {appointment_date}.")
-            buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
-            dispatcher.utter_message(text="Bạn có muốn hủy ngày khác không?", buttons=buttons)
-            return [SlotSet("appointment_date", None)]
+#         if not appointments:
+#             dispatcher.utter_message(text=f"Không có lịch hẹn nào trong ngày {appointment_date}.")
+#             buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
+#             dispatcher.utter_message(text="Bạn có muốn hủy ngày khác không?", buttons=buttons)
+#             return [SlotSet("appointment_date", None)]
 
-        # Hiển thị danh sách với buttons chọn
-        dispatcher.utter_message(text=f"Danh sách lịch hẹn ngày {appointment_date}:")
-        for appt in appointments:
-            appt_text = f"🩺 Bác sĩ {appt['tenBS']} - Giờ: {appt['khunggio']}"
-            dispatcher.utter_message(
-                text=appt_text,
-                buttons=[
-                    {
-                        "title": f"Chọn lịch {appt['khunggio']}",
-                        "payload": f"/select_appointment{{\"appointment_id\":\"{appt['maLH']}\"}}"
-                    }
-                ]
-            )
+#         # Hiển thị danh sách với buttons chọn
+#         dispatcher.utter_message(text=f"Danh sách lịch hẹn ngày {appointment_date}:")
+#         for appt in appointments:
+#             appt_text = f"🩺 Bác sĩ {appt['tenBS']} - Giờ: {appt['khunggio']}"
+#             dispatcher.utter_message(
+#                 text=appt_text,
+#                 buttons=[
+#                     {
+#                         "title": f"Chọn lịch {appt['khunggio']}",
+#                         "payload": f"/select_appointment{{\"appointment_id\":\"{appt['mahen']}\"}}"
+#                     }
+#                 ]
+#             )
 
-        return [SlotSet("appointment_date", None)]
+#         return [SlotSet("appointment_date", None)]
 
-class ActionConfirmCancel(Action):
-    def name(self) -> Text:
-        return "action_confirm_cancel"
+# class ActionConfirmCancel(Action):
+#     def name(self) -> Text:
+#         return "action_confirm_cancel"
 
-    def run(
-        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> List[Dict]:
-        # Lấy maLH từ latest_message entities (từ payload chọn)
-        entities = tracker.latest_message.get('entities', [])
-        selected_id = next((e['value'] for e in entities if e['entity'] == 'appointment_id'), None)
+#     def run(
+#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+#     ) -> List[Dict]:
+#         # Lấy mahen từ latest_message entities (từ payload chọn)
+#         entities = tracker.latest_message.get('entities', [])
+#         selected_id = next((e['value'] for e in entities if e['entity'] == 'appointment_id'), None)
         
-        if not selected_id:
-            dispatcher.utter_message(text="Không nhận được lịch hẹn để hủy. Hãy thử lại.")
-            return []
+#         if not selected_id:
+#             dispatcher.utter_message(text="Không nhận được lịch hẹn để hủy. Hãy thử lại.")
+#             return []
 
-        # Xác nhận hủy
-        dispatcher.utter_message(
-            text=f"Bạn có chắc muốn hủy lịch hẹn ID {selected_id}?",
-            buttons=[
-                {"title": "Xác nhận hủy", "payload": "/affirm"},
-                {"title": "Hủy bỏ", "payload": "/deny"}
-            ]
-        )
-        return [SlotSet("selected_appointment_id", selected_id)]
+#         # Xác nhận hủy
+#         dispatcher.utter_message(
+#             text=f"Bạn có chắc muốn hủy lịch hẹn ID {selected_id}?",
+#             buttons=[
+#                 {"title": "Xác nhận hủy", "payload": "/affirm"},
+#                 {"title": "Hủy bỏ", "payload": "/deny"}
+#             ]
+#         )
+#         return [SlotSet("selected_appointment_id", selected_id)]
 
-class ActionPerformCancel(Action):
-    def name(self) -> Text:
-        return "action_perform_cancel"
+# class ActionPerformCancel(Action):
+#     def name(self) -> Text:
+#         return "action_perform_cancel"
 
-    def run(
-        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> List[Dict]:
-        selected_id = tracker.get_slot("selected_appointment_id")
-        if not selected_id:
-            dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
-            return []
+#     def run(
+#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+#     ) -> List[Dict]:
+#         selected_id = tracker.get_slot("selected_appointment_id")
+#         if not selected_id:
+#             dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
+#             return []
 
-        # Update DB: Set trang_thai = 'hủy'
-        try:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            query = "UPDATE lichhen SET trangthai = 'hủy' WHERE maLH = %s AND maBN = %s"
-            cursor.execute(query, (selected_id, MA_BN_GLOBAL))
-            conn.commit()
-            cursor.close()
-            conn.close()
-            if cursor.rowcount > 0:
-                dispatcher.utter_message(text=f"Đã hủy thành công lịch hẹn ID {selected_id}.")
-            else:
-                dispatcher.utter_message(text="Không tìm thấy lịch hẹn để hủy.")
-        except Error as e:
-            dispatcher.utter_message(text=f"Lỗi cập nhật DB: {e}")
+#         # Update DB: Set trang_thai = 'hủy'
+#         try:
+#             conn = mysql.connector.connect(**DB_CONFIG)
+#             cursor = conn.cursor()
+#             query = "UPDATE lichhen SET trangthai = 'hủy' WHERE mahen = %s AND maBN = %s"
+#             cursor.execute(query, (selected_id, MA_BN_GLOBAL))
+#             conn.commit()
+#             cursor.close()
+#             conn.close()
+#             if cursor.rowcount > 0:
+#                 dispatcher.utter_message(text=f"Đã hủy thành công lịch hẹn ID {selected_id}.")
+#             else:
+#                 dispatcher.utter_message(text="Không tìm thấy lịch hẹn để hủy.")
+#         except Error as e:
+#             dispatcher.utter_message(text=f"Lỗi cập nhật DB: {e}")
 
-        buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
-        dispatcher.utter_message(text="Bạn có muốn hủy lịch khác không?", buttons=buttons)
-        return [SlotSet("selected_appointment_id", None),
-                SlotSet("current_task", None)]
+#         buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
+#         dispatcher.utter_message(text="Bạn có muốn hủy lịch khác không?", buttons=buttons)
+#         return [SlotSet("selected_appointment_id", None),
+#                 SlotSet("current_task", None)]
 
 class ActionSearchPrescription(Action):
     def name(self) -> Text:
@@ -1073,19 +1620,19 @@ class ActionSubmitBooking(Action):
             dispatcher.utter_message(text=f"Lỗi DB: {e}")
             return []
 
-        # Tạo maLH
+        # Tạo mahen
         now = datetime.now()
-        maLH = f"LH{now.strftime('%Y%m%d%H%M%S')}"
+        mahen = f"LH{now.strftime('%Y%m%d%H%M%S')}"
 
         # Insert vào DB
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor()
             query = """
-            INSERT INTO lichhen (maLH, maBN, maBS, ngaythangnam, khunggio, trangthai, maCK)
+            INSERT INTO lichhen (mahen, maBN, maBS, ngaythangnam, khunggio, trangthai, maCK)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(query, (maLH, MA_BN_GLOBAL, maBS, parsed_date, appointment_time, 'chờ', decription))
+            cursor.execute(query, (mahen, MA_BN_GLOBAL, maBS, parsed_date, appointment_time, 'chờ', decription))
             conn.commit()
             cursor.close()
             conn.close()
