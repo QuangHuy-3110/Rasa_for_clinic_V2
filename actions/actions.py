@@ -498,6 +498,7 @@ class ActionPerformCancelUpdated(Action):
             SlotSet("current_task", None)
         ]
 
+
 class ActionListDoctorsInForm(Action):
     def name(self) -> Text:
         return "action_list_doctors_in_form"
@@ -537,14 +538,33 @@ class ActionListDoctorsInForm(Action):
                 dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào trong chuyên khoa '{specialty}'. Vui lòng kiểm tra lại tên chuyên khoa.")
                 return [SlotSet("specialty", None)]
             
-            # Hiển thị danh sách bác sĩ
-            dispatcher.utter_message(text=f"📋 **Danh sách bác sĩ chuyên khoa {doctors[0]['tenCK']}:**\n")
-            
+            # Hiển thị danh sách bác sĩ bằng HTML
+            html_list = f"""
+            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #f8faff; border-radius: 10px; padding: 10px; border: 1px solid #cce0ff;">
+                <div style="color: #007bff; font-weight: bold; margin-bottom: 8px;">
+                    📋 Danh sách bác sĩ chuyên khoa {doctors[0]['tenCK']}:
+                </div>
+            """
+
             for idx, doc in enumerate(doctors, 1):
-                doc_info = f"{idx}. 🩺 **Bác sĩ {doc['tenBS']}**\n   - SĐT: {doc['sdtBS']}\n   - Email: {doc.get('emailBS', 'Chưa có')}"
-                dispatcher.utter_message(text=doc_info)
-            
-            dispatcher.utter_message(text=f"\nTổng cộng: {len(doctors)} bác sĩ\n\nTiếp tục đặt lịch...")
+                html_list += f"""
+                <div style="background: #ffffff; border-left: 3px solid #007bff; border-radius: 6px; padding: 6px 10px; margin-bottom: 6px;">
+                    <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
+                    <div>📞 <strong>SĐT:</strong> {doc['sdtBS']}</div>
+                    <div>✉️ <strong>Email:</strong> {doc.get('emailBS', 'Chưa có')}</div>
+                </div>
+                """
+
+            html_list += f"""
+                <div style="margin-top: 8px; font-size: 15px; color: #555;">
+                    Tổng cộng: <strong>{len(doctors)}</strong> bác sĩ<br>
+                    👉 Tiếp tục đặt lịch...
+                </div>
+            </div>
+            """
+
+            dispatcher.utter_message(text=html_list, html=True)
+
             
             # Set lại specialty nếu khác với specialty hiện tại
             current_specialty = tracker.get_slot("specialty")
@@ -557,6 +577,7 @@ class ActionListDoctorsInForm(Action):
             print(f"[ERROR] {e}")
             dispatcher.utter_message(text="Có lỗi khi tra cứu danh sách bác sĩ. Vui lòng thử lại.")
             return []
+
 
 class ActionShowDoctorInfoInForm(Action):
     def name(self) -> Text:
@@ -593,17 +614,19 @@ class ActionShowDoctorInfoInForm(Action):
             conn.close()
             
             if doctor:
-                info_text = f"""
-                    📋 **Thông tin Bác sĩ {doctor['tenBS']}**
-                    - Mã BS: {doctor['maBS']}
-                    - Chuyên khoa: {doctor['tenCK']}
-                    - SĐT: {doctor['sdtBS']}
-                    - Email: {doctor.get('emailBS', 'Chưa có thông tin')}
-                    - Kinh nghiệm: 20 năm
-
-                    Tiếp tục đặt lịch...
+                # Trình bày thông tin theo kiểu danh thiếp sử dụng HTML
+                info_html = f"""
+                <div style="border-left: 4px solid #007bff; background: #eef6ff; border-radius: 8px; padding: 10px 14px; font-family: Arial, sans-serif; font-size: 15px; line-height: 1.4; color: #333;">
+                    <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">👨‍⚕️ Bác sĩ {doctor['tenBS']}</div>
+                    <div><strong>Mã BS:</strong> {doctor['maBS']}</div>
+                    <div><strong>Chuyên khoa:</strong> {doctor['tenCK']}</div>
+                    <div><strong>SĐT:</strong> {doctor['sdtBS']}</div>
+                    <div><strong>Email:</strong> {doctor.get('emailBS', 'Chưa có')}</div>
+                    <div><strong>Kinh nghiệm:</strong> 20 năm</div>
+                </div>
+                <div style="margin-top: 6px; font-size: 15px;">Tiếp tục đặt lịch...</div>
                 """
-                dispatcher.utter_message(text=info_text)
+                dispatcher.utter_message(text=info_html)
                 
                 # Nếu user chưa chọn bác sĩ này, set vào slot
                 current_doctor = tracker.get_slot("doctor_name")
@@ -619,6 +642,7 @@ class ActionShowDoctorInfoInForm(Action):
             print(f"[ERROR] {e}")
             dispatcher.utter_message(text="Có lỗi khi tra cứu thông tin bác sĩ. Vui lòng thử lại.")
             return []
+
 
 class ActionExplainSpecialtyInForm(Action):
     def name(self) -> Text:
@@ -654,6 +678,7 @@ class ActionExplainSpecialtyInForm(Action):
         except Exception as e:
             print(f"[ERROR] {e}")
             return []
+
 
 class ValidateMyForm(FormValidationAction):
     def name(self) -> Text:
@@ -707,6 +732,7 @@ class ValidateMyForm(FormValidationAction):
         # Logic của form validation action
         return await super().run(dispatcher, tracker, domain)
 
+
 class ValidateRecommendDoctorForm(FormValidationAction):
     def name(self) -> Text:
         return "validate_recommend_doctor_form"
@@ -721,6 +747,7 @@ class ValidateRecommendDoctorForm(FormValidationAction):
         symptoms = tracker.latest_message.get('entities', [])
         symptom_list = [e['value'] for e in symptoms if e['entity'] == 'symptom']
         return {"symptoms": symptom_list}
+
 
 class ActionRecommendDoctor(Action):
     def name(self) -> Text:
@@ -785,21 +812,42 @@ class ActionRecommendDoctor(Action):
             dispatcher.utter_message(text="Rất tiếc, không tìm thấy bác sĩ phù hợp.")
             return [SlotSet("specialty_suggested", None)]
 
-        dispatcher.utter_message(text=f"Dựa trên triệu chứng, tôi đề xuất chuyên khoa {suggested_specialty}. Dưới đây là danh sách bác sĩ phù hợp:")
+        dispatcher.utter_message(
+            text=f"""
+            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #f9fbff; border-radius: 10px; padding: 10px 12px; border: 1px solid #cce0ff;">
+                <div style="color: #007bff; font-weight: bold; margin-bottom: 8px;">
+                    🔍 Dựa trên triệu chứng, tôi đề xuất chuyên khoa <span style="color:#0056b3;">{suggested_specialty}</span>.
+                </div>
+                <div style="margin-bottom: 6px;">Dưới đây là danh sách bác sĩ phù hợp:</div>
+            </div>
+            """, 
+            html=True
+        )
+
         for doc in doctors:
-            doc_card = f"🩺 **Bác sĩ {doc['tenBS']}** - Chuyên khoa: {doc['tenCK']} - Kinh nghiệm: 10 năm - Liên hệ: {doc['sdtBS']}"
+            doc_card = f"""
+            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #ffffff; border-left: 3px solid #007bff; border-radius: 8px; padding: 8px 10px; margin: 6px 0;">
+                <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
+                <div><strong>Chuyên khoa:</strong> {doc['tenCK']}</div>
+                <div><strong>Kinh nghiệm:</strong> 10 năm</div>
+                <div><strong>Liên hệ:</strong> {doc['sdtBS']}</div>
+            </div>
+            """
             dispatcher.utter_message(
                 text=doc_card,
                 buttons=[{
-                    "title": "Đặt lịch", 
+                    "title": "📅 Đặt lịch", 
                     "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
-                }]
+                }],
+                html=True
             )
+
 
         return [SlotSet("specialty_suggested", suggested_specialty),
                 SlotSet("current_task", None),
                 SlotSet("symptoms", None),
                 SlotSet("decription", None)]
+
 
 class ActionBookWithDoctor(Action):
     def name(self) -> Text:
@@ -872,6 +920,7 @@ class ActionBookWithDoctor(Action):
         )
         
         return events
+
 
 class ValidateBookAppointmentForm(FormValidationAction):
     def name(self) -> Text:
@@ -1054,68 +1103,13 @@ class ValidateBookAppointmentForm(FormValidationAction):
 
         if specialty_input not in specialties:
             dispatcher.utter_message(text=f"Chuyên khoa '{slot_value}' không có.")
-            for s in specialties[:5]:
-                dispatcher.utter_message(text=f"- {s.title()}")
-            return {"specialty": None}
+            # for s in specialties[:5]:
+            #     dispatcher.utter_message(text=f"- {s.title()}")
+            # return {"specialty": None}
 
         return {"specialty": slot_value.title()}
 
-    # def validate_doctor_name(
-    #     self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    # ) -> Dict[Text, Any]:
-    #     # ===== CHECK INTERRUPTION TRƯỚC =====
-    #     interruption_result = self._handle_form_interruption(dispatcher, tracker)
-    #     if interruption_result:
-    #         # Interruption đã xử lý và return kết quả với flag reset
-    #         return interruption_result
-        
-    #     # ===== VALIDATION BÌNH THƯỜNG =====
-    #     if not slot_value:
-    #         dispatcher.utter_message(text="Vui lòng chọn bác sĩ.")
-    #         return {"doctor_name": None}
-
-    #     doctor_input = str(slot_value).strip()
-    #     if self._detect_wrong_input('doctor_name', doctor_input):
-    #         dispatcher.utter_message(text="Đó có vẻ là thông tin khác. Vui lòng nhập tên bác sĩ hoặc chọn từ danh sách.")
-    #         return {"doctor_name": None}
-
-    #     specialty = tracker.get_slot("specialty")
-    #     try:
-    #         conn = mysql.connector.connect(**DB_CONFIG)
-    #         cursor = conn.cursor(dictionary=True)
-    #         if specialty:
-    #             cursor.execute("""
-    #                 SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-    #                 FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
-    #                 JOIN chuyenkhoa ck ON cm.maCK = ck.maCK WHERE ck.tenCK = %s
-    #             """, (specialty,))
-    #         else:
-    #             cursor.execute("""
-    #                 SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-    #                 FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
-    #                 JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
-    #             """)
-    #         doctors = cursor.fetchall()
-    #         cursor.close()
-    #         conn.close()
-    #     except Error as e:
-    #         dispatcher.utter_message(text=f"Lỗi DB: {e}")
-    #         return {"doctor_name": None}
-
-    #     matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
-    #     if not matched:
-    #         dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Các bác sĩ có sẵn:")
-    #         for doc in doctors[:3]:
-    #             dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
-    #         dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
-    #         return {"doctor_name": None}
-
-    #     doc = matched[0]
-    #     dispatcher.utter_message(
-    #         text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
-    #     )
-    #     return {"doctor_name": doc["tenBS"]}
-    
+       
     def validate_doctor_name(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
@@ -1160,18 +1154,54 @@ class ValidateBookAppointmentForm(FormValidationAction):
 
         matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
         if not matched:
-            dispatcher.utter_message(text=f"Không tìm thấy bác sĩ '{doctor_input}'. Các bác sĩ có sẵn:")
+            # Khi không tìm thấy bác sĩ
+            not_found_html = f"""
+            <div style="font-family: Arial, sans-serif; background: #f8f9fa;
+                        border-left: 5px solid #dc3545; border-radius: 8px;
+                        padding: 12px 16px; margin-bottom: 10px;">
+                <p style="color: #dc3545; font-weight: bold; margin: 0 0 6px 0;">
+                    ❌ Không tìm thấy bác sĩ "<span style='color:#000;'>{doctor_input}</span> ở chuyên khoa {specialty or 'Tất cả chuyên khoa'}".
+                </p>
+                <p style="margin: 4px 0;">👉 Vui lòng chọn một trong các bác sĩ trong chuyên khoa {specialty} được gợi ý dưới đây:</p>
+            </div>
+            """
+            dispatcher.utter_message(text=not_found_html, metadata={"html": True})
+
+            # Hiển thị tối đa 3 bác sĩ gợi ý
             for doc in doctors[:3]:
-                dispatcher.utter_message(text=f"- 🩺 {doc['tenBS']} - {doc['tenCK']} ({doc['sdtBS']})")
-            dispatcher.utter_message(text="Vui lòng chọn một trong số chúng.")
+                suggestion_html = f"""
+                <div style="background: #ffffff; border: 1px solid #dee2e6;
+                            border-radius: 6px; padding: 8px 12px; margin: 6px 0;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-family: Arial, sans-serif;">
+                    <p style="margin: 0;"><strong>🩺 {doc['tenBS']}</strong></p>
+                    <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+                    <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
+                </div>
+                """
+                dispatcher.utter_message(text=suggestion_html, metadata={"html": True})
+
+            # dispatcher.utter_message(
+            #     text="<p style='margin-top:8px;'>👉 Vui lòng chọn một trong các bác sĩ trên.</p>",
+            #     metadata={"html": True}
+            # )
+
             cursor.close()
             conn.close()
             return {"doctor_name": None}
 
+        # Khi tìm thấy bác sĩ
         doc = matched[0]
-        dispatcher.utter_message(
-            text=f"Xác nhận: 🩺 {doc['tenBS']} - {doc['tenCK']} - {doc['sdtBS']}"
-        )
+        confirm_html = f"""
+        <div style="font-family: Arial, sans-serif; background: #f8f9fa;
+                    border-left: 5px solid #0d6efd; border-radius: 8px;
+                    padding: 12px 16px; margin-top: 10px;">
+            <p style="font-weight: bold; color: #0d6efd; margin: 0 0 6px 0;">✅ Xác nhận thông tin bác sĩ:</p>
+            <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
+            <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+            <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
+        </div>
+        """
+        dispatcher.utter_message(text=confirm_html, metadata={"html": True})
 
         # ===== FETCH DOCTOR'S SCHEDULE =====
         try:
@@ -1276,6 +1306,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
             }
         return {}
 
+
 class ActionBookAppointment(Action):
     def name(self) -> Text:
         return "action_book_appointment"
@@ -1293,13 +1324,29 @@ class ActionBookAppointment(Action):
             return []
 
         dispatcher.utter_message(
-            text=f"Xác nhận: Bác sĩ **{slots['doctor_name']}** - {slots['specialty']} - {slots['appointment_time']} ngày {slots['date']}. Mô tả: {slots['decription']}",
+            text=f"""
+            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                        background: #f8f9fa; border-left: 4px solid #0d6efd; border-radius: 8px;
+                        padding: 12px 14px; margin: 6px 0;">
+                <div style="font-weight: bold; color: #0d6efd; margin-bottom: 6px;">
+                    ✅ Xác nhận thông tin đặt lịch
+                </div>
+                <div><strong>Bác sĩ:</strong> {slots['doctor_name']}</div>
+                <div><strong>Chuyên khoa:</strong> {slots['specialty']}</div>
+                <div><strong>Thời gian:</strong> {slots['appointment_time']} ngày {slots['date']}</div>
+                <div><strong>Mô tả:</strong> {slots['decription']}</div>
+                <div style="margin-top: 8px;">👉 Vui lòng xác nhận để hoàn tất đặt lịch.</div>
+            </div>
+            """,
             buttons=[
-                {"title": "Xác nhận", "payload": "/affirm"},
-                {"title": "Hủy", "payload": "/deny"}
-            ]
+                {"title": "✅ Xác nhận", "payload": "/affirm"},
+                {"title": "❌ Hủy", "payload": "/deny"}
+            ],
+            metadata={"html": True}
         )
+
         return []  # Không reset ngay, chờ affirm/deny qua rules
+
 
 # Phần mới: Tra cứu thông tin bác sĩ
 class ActionSearchDoctor(Action):
@@ -1337,20 +1384,42 @@ class ActionSearchDoctor(Action):
             dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào có tên chứa '{doctor_name_search}'. Hãy thử tên khác.")
             return [SlotSet("doctor_name", None)]
 
-        dispatcher.utter_message(text=f"Tìm thấy {len(doctors)} bác sĩ phù hợp với '{doctor_name_search}':")
+        dispatcher.utter_message(
+            text=f"""
+            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
+                <div style="font-weight: bold; color: #0d6efd; margin-bottom: 8px;">
+                    🔍 Tìm thấy {len(doctors)} bác sĩ phù hợp với từ khóa "<span style='color:#dc3545;'>{doctor_name_search}</span>":
+                </div>
+            </div>
+            """,
+            metadata={"html": True}
+        )
+
         for doc in doctors:
             doc_card = f"""
-                - 🩺 **Bác sĩ {doc['tenBS']}**
-                - Chuyên khoa: {doc['tenCK']}
-                - SĐT: {doc['sdtBS']}
+                <div style="background: #f8f9fa; border-left: 4px solid #0d6efd;
+                            border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+                    <div style="font-weight: bold; color: #0d6efd; margin-bottom: 4px;">
+                        🩺 Bác sĩ {doc['tenBS']}
+                    </div>
+                    <div><strong>Chuyên khoa:</strong> {doc['tenCK']}</div>
+                    <div><strong>SĐT:</strong> {doc['sdtBS']}</div>
+                </div>
             """
             dispatcher.utter_message(
                 text=doc_card,
-                buttons=[{"title": "Xem chi tiết", "payload": f"/view_doctor_detail{{\"doctor_id\":\"{doc['maBS']}\"}}"}]
+                buttons=[
+                    {
+                        "title": "📄 Xem chi tiết",
+                        "payload": f"/view_doctor_detail{{\"doctor_id\":\"{doc['maBS']}\"}}"
+                    }
+                ],
+                metadata={"html": True}
             )
 
         return [SlotSet("current_task", None),
                 SlotSet("doctor_name", None)]
+
 
 class ActionViewDoctorDetail(Action):
     def name(self) -> Text:
@@ -1391,24 +1460,33 @@ class ActionViewDoctorDetail(Action):
             return []
 
         # Utter chi tiết
-        detail_text = f"""
-        📋 **Chi tiết Bác sĩ {doctor['tenBS']}**
-        - Mã BS: {doctor['maBS']}
-        - Chuyên khoa: {doctor['tenCK']}
-        - SĐT: {doctor['sdtBS']}
-        - Email: {doctor.get('emailBS', 'Chưa có thông tin')}
-        - Kinh nghiệm: 20 năm
-        - Các dịch vụ khác: Tư vấn và khám chuyên sâu về {doctor['tenCK']}.
-
-        Bạn có muốn đặt lịch với bác sĩ này không?
+        detail_html = f"""
+        <div style="font-family: Arial, sans-serif; background-color: #f8f9fa;
+                    border-radius: 10px; border-left: 5px solid #0d6efd;
+                    padding: 14px 18px; max-width: 420px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+            <h3 style="color: #0d6efd; margin-top: 0; margin-bottom: 8px;">📋 Thông tin chi tiết bác sĩ</h3>
+            <p style="margin: 4px 0;"><strong>👨‍⚕️ Họ tên:</strong> {doctor['tenBS']}</p>
+            <p style="margin: 4px 0;"><strong>🆔 Mã BS:</strong> {doctor['maBS']}</p>
+            <p style="margin: 4px 0;"><strong>🏥 Chuyên khoa:</strong> {doctor['tenCK']}</p>
+            <p style="margin: 4px 0;"><strong>📞 SĐT:</strong> {doctor['sdtBS']}</p>
+            <p style="margin: 4px 0;"><strong>📧 Email:</strong> {doctor.get('emailBS', 'Chưa có thông tin')}</p>
+            <p style="margin: 4px 0;"><strong>💼 Kinh nghiệm:</strong> 20 năm</p>
+            <p style="margin: 4px 0;"><strong>🩺 Dịch vụ:</strong> Tư vấn và khám chuyên sâu về {doctor['tenCK']}.</p>
+            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 10px 0;">
+            <p style="font-weight: bold; color: #333;">Bạn có muốn đặt lịch với bác sĩ này không?</p>
+        </div>
         """
+
         buttons = [
-            {"title": "Đặt lịch", "payload": "/book_appointment"},
-            {"title": "Tìm bác sĩ khác", "payload": "/search_doctor_info"}
+            {"title": "📅 Đặt lịch", "payload": "/book_appointment"},
+            {"title": "🔍 Tìm bác sĩ khác", "payload": "/search_doctor_info"}
         ]
-        dispatcher.utter_message(text=detail_text, buttons=buttons)
+
+        dispatcher.utter_message(text=detail_html, buttons=buttons, metadata={"html": True})
+
 
         return []
+
 
 class ActionSearchSpecialty(Action):
     def name(self) -> Text:
@@ -1461,6 +1539,7 @@ class ActionSearchSpecialty(Action):
             SlotSet("specialty", specialty),
             FollowupAction("book_appointment_form")  # ← Force reactivate!
         ]
+
 
 class ActionSearchPrescription(Action):
     def name(self) -> Text:
@@ -1518,6 +1597,7 @@ class ActionSearchPrescription(Action):
         dispatcher.utter_message(text="Bạn có muốn tra cứu thêm không?", buttons=buttons)
 
         return [SlotSet("prescription_date", None)]
+
 
 class ActionSubmitBooking(Action):
     def name(self) -> Text:
@@ -1591,6 +1671,7 @@ class ActionSubmitBooking(Action):
         ]
         return events
 
+
 class ActionResetBooking(Action):
     def name(self) -> Text:
         return "action_reset_booking"
@@ -1607,6 +1688,7 @@ class ActionResetBooking(Action):
         ]
         return events
 
+
 class ActionResetCancel(Action):
     def name(self) -> Text:
         return "action_reset_cancel"
@@ -1619,6 +1701,7 @@ class ActionResetCancel(Action):
             SlotSet("appointment_date", None)
         ]
         return events
+
 
 class ActionSetCurrentTask(Action):
     def name(self) -> Text:
@@ -1633,7 +1716,8 @@ class ActionSetCurrentTask(Action):
         elif intent == 'cancel_appointment':
             return [SlotSet("current_task", "cancel_appointment")]
         return []
-    
+
+
 class ActionHandleDeny(Action):
     """
     Custom Action để xử lý intent 'deny': Dừng tất cả forms active, reset slots liên quan,

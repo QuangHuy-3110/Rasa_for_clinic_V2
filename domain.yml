@@ -277,42 +277,98 @@ responses:
     - text: "Vui lòng chọn mã số lịch hẹn bạn muốn hủy từ danh sách:"
 
   utter_greet:
-    - text: "Xin chào! Tôi là chatbot hỗ trợ phòng khám. Bạn cần gì hôm nay?"
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #f8faff; border-radius: 10px; padding: 12px 14px; border: 1px solid #cce0ff;">
+            <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">🤖 Xin chào!</div>
+            <div>Tôi là <strong>chatbot hỗ trợ phòng khám</strong> 🏥.<br>
+            Bạn cần tôi giúp gì hôm nay?</div>
+        </div>
       buttons:
-        - title: "Đề xuất bác sĩ"
+        - title: "🩺 Đề xuất bác sĩ"
           payload: "/request_doctor"
-        - title: "Đặt lịch hẹn"
+        - title: "📅 Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "Hủy lịch hẹn"
+        - title: "❌ Hủy lịch hẹn"
           payload: "/cancel_appointment"
+      metadata:
+        html: true
 
   utter_goodbye:
     - text: "Tạm biệt! Chúc bạn sức khỏe."
 
-  # ← THÊM response cho out_of_scope
+  # ← THÊM response cho out_of_scope (hiển thị đẹp trong chatbox)
   utter_out_of_scope:
-    - text: "Xin lỗi, tôi chưa được đào tạo để trả lời câu hỏi này. Tôi chỉ có thể hỗ trợ bạn với:\n• Đề xuất bác sĩ phù hợp\n• Đặt lịch hẹn khám\n• Hủy lịch hẹn\n• Tra cứu thông tin bác sĩ và chuyên khoa\n\nBạn có muốn tôi giúp gì trong số những việc trên không?"
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #fff8f8; border-left: 4px solid #dc3545; border-radius: 8px;
+                    padding: 12px 14px; margin: 4px 0;">
+            <div style="font-weight: bold; color: #dc3545; margin-bottom: 6px;">⚠️ Xin lỗi!</div>
+            <div>Tôi chưa được đào tạo để trả lời câu hỏi này.</div>
+            <div style="margin-top: 6px;">Hiện tôi có thể hỗ trợ bạn với:</div>
+            <ul style="margin: 6px 0 0 18px; padding: 0;">
+                <li>🩺 <strong>Đề xuất bác sĩ phù hợp</strong></li>
+                <li>📅 <strong>Đặt lịch hẹn khám</strong></li>
+                <li>❌ <strong>Hủy lịch hẹn</strong></li>
+                <li>📋 <strong>Tra cứu thông tin bác sĩ và chuyên khoa</strong></li>
+            </ul>
+            <div style="margin-top: 8px;">👉 Bạn muốn tôi giúp gì trong số những việc trên không?</div>
+        </div>
       buttons:
-        - title: "Đề xuất bác sĩ"
+        - title: "🩺 Đề xuất bác sĩ"
           payload: "/request_doctor"
-        - title: "Đặt lịch hẹn"
+        - title: "📅 Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "Hủy lịch hẹn"
+        - title: "❌ Hủy lịch hẹn"
           payload: "/cancel_appointment"
-    - text: "Rất tiếc, tôi không thể trả lời câu hỏi này. Tôi là chatbot chuyên về đặt lịch khám bệnh và tư vấn bác sĩ. Bạn có thể hỏi tôi về:\n✓ Triệu chứng bệnh để gợi ý bác sĩ\n✓ Đặt lịch khám với bác sĩ\n✓ Hủy lịch hẹn\n✓ Thông tin bác sĩ và chuyên khoa\n\nBạn muốn làm gì tiếp theo?"
+      metadata:
+        html: true
+
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #f9fbff; border-left: 4px solid #007bff; border-radius: 8px;
+                    padding: 12px 14px;">
+            <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">ℹ️ Rất tiếc!</div>
+            <div>Tôi là chatbot chuyên về <strong>tư vấn và đặt lịch khám bệnh</strong>.</div>
+            <div style="margin-top: 6px;">Bạn có thể hỏi tôi về:</div>
+            <ul style="margin: 6px 0 0 18px; padding: 0;">
+                <li>💬 <strong>Triệu chứng bệnh</strong> để gợi ý bác sĩ</li>
+                <li>📅 <strong>Đặt lịch khám</strong> với bác sĩ</li>
+                <li>❌ <strong>Hủy lịch hẹn</strong></li>
+                <li>📋 <strong>Thông tin bác sĩ và chuyên khoa</strong></li>
+            </ul>
+            <div style="margin-top: 8px;">👉 Bạn muốn làm gì tiếp theo?</div>
+        </div>
       buttons:
-        - title: "Tìm bác sĩ"
+        - title: "🔍 Tìm bác sĩ"
           payload: "/request_doctor"
-        - title: "Đặt lịch"
+        - title: "📅 Đặt lịch"
           payload: "/book_appointment"
-    - text: "Tôi chưa được lập trình để xử lý yêu cầu này. Hiện tại tôi chỉ hỗ trợ:\n🩺 Đề xuất bác sĩ dựa trên triệu chứng\n📅 Đặt lịch hẹn khám\n❌ Hủy lịch hẹn\n📋 Tra cứu thông tin bác sĩ/chuyên khoa\n\nVui lòng chọn một trong các chức năng trên."
+      metadata:
+        html: true
+
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #fffef5; border-left: 4px solid #ffc107; border-radius: 8px;
+                    padding: 12px 14px;">
+            <div style="font-weight: bold; color: #ffb300; margin-bottom: 6px;">🤖 Tôi chưa được lập trình để xử lý yêu cầu này.</div>
+            <div>Hiện tại tôi chỉ hỗ trợ các chức năng sau:</div>
+            <ul style="margin: 6px 0 0 18px; padding: 0;">
+                <li>🩺 <strong>Đề xuất bác sĩ</strong> dựa trên triệu chứng</li>
+                <li>📅 <strong>Đặt lịch hẹn khám</strong></li>
+                <li>❌ <strong>Hủy lịch hẹn</strong></li>
+                <li>📋 <strong>Tra cứu thông tin bác sĩ / chuyên khoa</strong></li>
+            </ul>
+            <div style="margin-top: 8px;">Vui lòng chọn một trong các chức năng bên dưới 👇</div>
+        </div>
       buttons:
-        - title: "Đề xuất bác sĩ"
+        - title: "🩺 Đề xuất bác sĩ"
           payload: "/request_doctor"
-        - title: "Đặt lịch hẹn"
+        - title: "📅 Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "Hủy lịch hẹn"
+        - title: "❌ Hủy lịch hẹn"
           payload: "/cancel_appointment"
+      metadata:
+        html: true
 
   utter_ask_symptoms:
     - text: "Bạn đang gặp triệu chứng gì? Hãy mô tả chi tiết (có thể liệt kê nhiều, ví dụ: 'đau đầu, sốt')."
@@ -348,20 +404,40 @@ responses:
     - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY)."
 
   utter_confirm:
-    - text: "Bạn có muốn đặt lịch với bác sĩ này không?"
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #f9fbff; border-left: 4px solid #007bff; border-radius: 8px;
+                    padding: 12px 14px; margin: 4px 0;">
+            <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">📅 Xác nhận đặt lịch</div>
+            <div>Bạn có muốn <strong>đặt lịch với bác sĩ này</strong> không?</div>
+        </div>
       buttons:
-        - title: "Có"
-          payload: "affirm"
-        - title: "Không"
-          payload: "deny"
+        - title: "✅ Có"
+          payload: "/affirm"
+        - title: "❌ Không"
+          payload: "/deny"
+      metadata:
+        html: true
 
   utter_confirm_booking:
-    - text: "Bạn có muốn xác nhận đặt lịch với bác sĩ {doctor_name} vào {appointment_time} ngày {date} cho chuyên khoa {specialty} với mô tả bệnh trạng: '{decription}' không?"
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #fffef5; border-left: 4px solid #ffc107; border-radius: 8px;
+                    padding: 12px 14px; margin: 4px 0;">
+            <div style="font-weight: bold; color: #ffb300; margin-bottom: 6px;">🩺 Xác nhận thông tin đặt lịch</div>
+            <div><strong>Bác sĩ:</strong> {doctor_name}</div>
+            <div><strong>Chuyên khoa:</strong> {specialty}</div>
+            <div><strong>Thời gian:</strong> {appointment_time} ngày {date}</div>
+            <div><strong>Mô tả bệnh trạng:</strong> “{decription}”</div>
+            <div style="margin-top: 8px;">👉 Bạn có muốn xác nhận đặt lịch này không?</div>
+        </div>
       buttons:
-        - title: "Có"
+        - title: "✅ Có"
           payload: "/affirm"
-        - title: "Không"
+        - title: "❌ Không"
           payload: "/deny"
+      metadata:
+        html: true
 
   utter_appointment_cancelled:
     - text: "Bạn đã hủy đặt lịch hẹn."
@@ -421,12 +497,22 @@ responses:
     - text: "Danh sách lịch hẹn ngày {appointment_date}:"
 
   utter_confirm_cancel:
-    - text: "Bạn có chắc muốn hủy lịch hẹn {selected_appointment_id} không?"
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #fff8f8; border-left: 4px solid #dc3545; border-radius: 8px;
+                    padding: 12px 14px; margin: 4px 0;">
+            <div style="font-weight: bold; color: #dc3545; margin-bottom: 6px;">❌ Xác nhận hủy lịch hẹn</div>
+            <div>Bạn có chắc muốn <strong>hủy lịch hẹn mã số</strong> 
+            <span style="color: #b30000;">{selected_appointment_id}</span> không?</div>
+            <div style="margin-top: 8px;">👉 Vui lòng chọn bên dưới để xác nhận.</div>
+        </div>
       buttons:
-        - title: "Có"
+        - title: "✅ Có"
           payload: "/affirm"
-        - title: "Không"
+        - title: "❌ Không"
           payload: "/deny"
+      metadata:
+        html: true
 
   utter_cancel_success:
     - text: "Đã hủy lịch hẹn thành công."
@@ -453,14 +539,22 @@ responses:
     - text: "Xin lỗi, tôi không hiểu rõ câu hỏi của bạn. Bạn có thể nói lại hoặc chọn một trong các tùy chọn không?"
 
   utter_ask_intent:
-    - text: "Bạn muốn làm gì tiếp theo? Vui lòng chọn một trong các tùy chọn sau:"
+    - text: |
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                    background: #f8faff; border-left: 4px solid #007bff; border-radius: 8px;
+                    padding: 12px 14px; margin: 4px 0;">
+            <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">🤖 Bạn muốn làm gì tiếp theo?</div>
+            <div>Vui lòng chọn một trong các tùy chọn bên dưới 👇</div>
+        </div>
       buttons:
-        - title: "Đề xuất bác sĩ"
+        - title: "🩺 Đề xuất bác sĩ"
           payload: "/request_doctor"
-        - title: "Đặt lịch hẹn"
+        - title: "📅 Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "Hủy lịch hẹn"
+        - title: "❌ Hủy lịch hẹn"
           payload: "/cancel_appointment"
+      metadata:
+        html: true
 
 forms:
   cancel_appointment_form:
