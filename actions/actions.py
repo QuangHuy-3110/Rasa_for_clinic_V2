@@ -1541,62 +1541,62 @@ class ActionSearchSpecialty(Action):
         ]
 
 
-class ActionSearchPrescription(Action):
-    def name(self) -> Text:
-        return "action_search_prescription"
+# class ActionSearchPrescription(Action):
+#     def name(self) -> Text:
+#         return "action_search_prescription"
 
-    def run(
-        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> List[Dict]:
-        prescription_date = tracker.get_slot("prescription_date")
-        if not prescription_date:
-            dispatcher.utter_message(
-                text="Vui lòng nhập ngày bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).",
-                buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
-            )
-            return [SlotSet("prescription_date", None)]
+#     def run(
+#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+#     ) -> List[Dict]:
+#         prescription_date = tracker.get_slot("prescription_date")
+#         if not prescription_date:
+#             dispatcher.utter_message(
+#                 text="Vui lòng nhập ngày bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).",
+#                 buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
+#             )
+#             return [SlotSet("prescription_date", None)]
 
-        # Parse ngày
-        try:
-            parsed_date = datetime.strptime(prescription_date, '%d/%m/%Y').date()
-        except ValueError:
-            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
-            return [SlotSet("prescription_date", None)]
+#         # Parse ngày
+#         try:
+#             parsed_date = datetime.strptime(prescription_date, '%d/%m/%Y').date()
+#         except ValueError:
+#             dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+#             return [SlotSet("prescription_date", None)]
 
-        # Query MySQL: Lấy toa thuốc của maBN trong ngày đó
-        try:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            cursor = conn.cursor(dictionary=True)
-            query = """
-            SELECT maTT, ngay_ke, noi_dung_toa
-            FROM toa_thuoc
-            WHERE maBN = %s AND DATE(ngay_ke) = %s
-            ORDER BY ngay_ke
-            """
-            cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
-            prescriptions = cursor.fetchall()
-            cursor.close()
-            conn.close()
-        except Error as e:
-            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
-            return [SlotSet("prescription_date", None)]
+#         # Query MySQL: Lấy toa thuốc của maBN trong ngày đó
+#         try:
+#             conn = mysql.connector.connect(**DB_CONFIG)
+#             cursor = conn.cursor(dictionary=True)
+#             query = """
+#             SELECT maTT, ngay_ke, noi_dung_toa
+#             FROM toa_thuoc
+#             WHERE maBN = %s AND DATE(ngay_ke) = %s
+#             ORDER BY ngay_ke
+#             """
+#             cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+#             prescriptions = cursor.fetchall()
+#             cursor.close()
+#             conn.close()
+#         except Error as e:
+#             dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+#             return [SlotSet("prescription_date", None)]
 
-        if not prescriptions:
-            dispatcher.utter_message(text=f"Không có toa thuốc nào trong ngày {prescription_date}.")
-            buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
-            dispatcher.utter_message(text="Bạn có muốn tra cứu ngày khác không?", buttons=buttons)
-            return [SlotSet("prescription_date", None)]
+#         if not prescriptions:
+#             dispatcher.utter_message(text=f"Không có toa thuốc nào trong ngày {prescription_date}.")
+#             buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
+#             dispatcher.utter_message(text="Bạn có muốn tra cứu ngày khác không?", buttons=buttons)
+#             return [SlotSet("prescription_date", None)]
 
-        # Hiển thị danh sách toa thuốc
-        dispatcher.utter_message(text=f"Toa thuốc ngày {prescription_date}:")
-        for rx in prescriptions:
-            rx_text = f"📋 Toa thuốc ID {rx['maTT']} - Ngày kê: {rx['ngay_ke']}\nNội dung: {rx['noi_dung_toa']}"
-            dispatcher.utter_message(text=rx_text)
+#         # Hiển thị danh sách toa thuốc
+#         dispatcher.utter_message(text=f"Toa thuốc ngày {prescription_date}:")
+#         for rx in prescriptions:
+#             rx_text = f"📋 Toa thuốc ID {rx['maTT']} - Ngày kê: {rx['ngay_ke']}\nNội dung: {rx['noi_dung_toa']}"
+#             dispatcher.utter_message(text=rx_text)
 
-        buttons = [{"title": "Tra cứu ngày khác", "payload": "/search_prescription"}, {"title": "Quay lại menu", "payload": "/greet"}]
-        dispatcher.utter_message(text="Bạn có muốn tra cứu thêm không?", buttons=buttons)
+#         buttons = [{"title": "Tra cứu ngày khác", "payload": "/search_prescription"}, {"title": "Quay lại menu", "payload": "/greet"}]
+#         dispatcher.utter_message(text="Bạn có muốn tra cứu thêm không?", buttons=buttons)
 
-        return [SlotSet("prescription_date", None)]
+#         return [SlotSet("prescription_date", None)]
 
 
 class ActionSubmitBooking(Action):
@@ -1702,6 +1702,373 @@ class ActionResetCancel(Action):
         ]
         return events
 
+# ================================ TÌM TOA THUỐC ============================
+
+class ValidateSearchPrescriptionForm(FormValidationAction):
+    """Validation cho search_prescription_form với hỗ trợ interruption"""
+    
+    def name(self) -> Text:
+        return "validate_search_prescription_form"
+
+    def _handle_form_interruption(self, dispatcher, tracker):
+        """Xử lý interruption trong prescription form"""
+        latest_message = tracker.latest_message
+        
+        if hasattr(latest_message, 'intent'):
+            latest_intent = latest_message.intent.get('name')
+        else:
+            latest_intent = latest_message.get('intent', {}).get('name')
+
+        # === Xử lý explain_specialty ===
+        if latest_intent == "explain_specialty":
+            explain_action = ActionExplainSpecialtyInForm()
+            explain_action.run(dispatcher, tracker, {})
+            return {
+                "prescription_date": tracker.get_slot("prescription_date"),
+                "just_explained": False,
+            }
+        
+        # === Xử lý ask_doctor_info ===
+        if latest_intent == "ask_doctor_info":
+            info_action = ActionShowDoctorInfoInForm()
+            info_action.run(dispatcher, tracker, {})
+            return {
+                "prescription_date": tracker.get_slot("prescription_date"),
+                "just_asked_doctor_info": False,
+            }
+        
+        # === Xử lý list_doctors_by_specialty ===
+        if latest_intent == "list_doctors_by_specialty":
+            list_action = ActionListDoctorsInForm()
+            list_action.run(dispatcher, tracker, {})
+            return {
+                "prescription_date": tracker.get_slot("prescription_date"),
+                "just_listed_doctors": False,
+            }
+        
+        return {}
+
+    def validate_prescription_date(
+        self, 
+        slot_value: Any, 
+        dispatcher: CollectingDispatcher, 
+        tracker: Tracker, 
+        domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
+        """Validate ngày khám để tra cứu toa thuốc"""
+        
+        # === CHECK INTERRUPTION TRƯỚC ===
+        interruption_result = self._handle_form_interruption(dispatcher, tracker)
+        if interruption_result:
+            return interruption_result
+        
+        # Kiểm tra nếu user muốn tìm toa thuốc mới nhất
+        if tracker.get_slot("search_latest_prescription"):
+            # Bỏ qua validation, để action_get_latest_prescription xử lý
+            return {"prescription_date": "latest"}
+        
+        # === VALIDATION BÌNH THƯỜNG ===
+        if not slot_value:
+            dispatcher.utter_message(text="Vui lòng cung cấp ngày khám bạn muốn tra cứu toa thuốc (DD/MM/YYYY).")
+            return {"prescription_date": None}
+
+        date_input = str(slot_value).strip()
+        
+        # Validate format
+        try:
+            parsed_date = datetime.strptime(date_input, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(
+                text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.\nVí dụ: 15/10/2025"
+            )
+            return {"prescription_date": None}
+
+        # Không cần kiểm tra ngày trong quá khứ vì tra cứu toa thuốc có thể là ngày cũ
+        
+        return {"prescription_date": date_input}
+
+
+class ActionSearchPrescription(Action):
+    """Action khởi tạo search prescription form - CHỈ set context"""
+    
+    def name(self) -> Text:
+        return "action_search_prescription"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        # CHỈ set context, KHÔNG utter message
+        return [
+            SlotSet("current_task", "search_prescription"),
+            SlotSet("prescription_date", None),
+            SlotSet("search_latest_prescription", False)
+        ]
+
+
+class ActionGetLatestPrescription(Action):
+    """Action lấy toa thuốc mới nhất"""
+    
+    def name(self) -> Text:
+        return "action_get_latest_prescription"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        
+        # Set flag để form biết đây là tìm toa thuốc mới nhất
+        return [
+            SlotSet("search_latest_prescription", True),
+            SlotSet("prescription_date", "latest")
+        ]
+
+
+class ActionShowPrescriptionResults(Action):
+    """Action hiển thị kết quả tìm toa thuốc (sau khi form hoàn tất)"""
+    
+    def name(self) -> Text:
+        return "action_show_prescription_results"
+
+    def run(
+        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> List[Dict]:
+        
+        prescription_date = tracker.get_slot("prescription_date")
+        search_latest = tracker.get_slot("search_latest_prescription")
+        
+        if not prescription_date and not search_latest:
+            dispatcher.utter_message(text="Không có thông tin ngày khám hoặc yêu cầu tìm toa thuốc.")
+            return []
+
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            if search_latest or prescription_date == "latest":
+                # Tìm toa thuốc mới nhất
+                query = """
+                SELECT 
+                    lk.maLanKham,
+                    lk.ngaythangnamkham,
+                    t.tenThuoc,
+                    tt.lieuluong,
+                    tt.soluong,
+                    tt.donvi,
+                    tt.thoigianSD
+                FROM lankham lk
+                JOIN hosobenhnhan hs ON lk.maHS = hs.maHS
+                JOIN toathuoc tt ON lk.maLanKham = tt.maLanKham
+                JOIN thuoc t ON tt.maThuoc = t.maThuoc
+                WHERE hs.maBN = %s
+                ORDER BY lk.ngaythangnamkham DESC
+                LIMIT 20
+                """
+                cursor.execute(query, (MA_BN_GLOBAL,))
+                prescriptions = cursor.fetchall()
+                
+                if not prescriptions:
+                    dispatcher.utter_message(
+                        text="Không tìm thấy toa thuốc nào trong hồ sơ của bạn."
+                    )
+                    cursor.close()
+                    conn.close()
+                    return self._reset_slots()
+                
+                # Lấy ngày khám mới nhất
+                latest_date = prescriptions[0]['ngaythangnamkham']
+                title = f"Toa thuốc mới nhất (Ngày khám: {latest_date.strftime('%d/%m/%Y')})"
+                
+            else:
+                # Tìm toa thuốc theo ngày cụ thể
+                parsed_date = datetime.strptime(prescription_date, '%d/%m/%Y').date()
+                
+                query = """
+                SELECT 
+                    lk.maLanKham,
+                    lk.ngaythangnamkham,
+                    t.tenThuoc,
+                    tt.lieuluong,
+                    tt.soluong,
+                    tt.donvi,
+                    tt.thoigianSD
+                FROM lankham lk
+                JOIN hosobenhnhan hs ON lk.maHS = hs.maHS
+                JOIN toathuoc tt ON lk.maLanKham = tt.maLanKham
+                JOIN thuoc t ON tt.maThuoc = t.maThuoc
+                WHERE hs.maBN = %s AND DATE(lk.ngaythangnamkham) = %s
+                ORDER BY t.tenThuoc
+                """
+                cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+                prescriptions = cursor.fetchall()
+                
+                if not prescriptions:
+                    dispatcher.utter_message(
+                        text=f"Không tìm thấy toa thuốc nào trong ngày {prescription_date}."
+                    )
+                    buttons = [
+                        {"title": "📋 Xem toa thuốc mới nhất", "payload": "/request_latest_prescription"},
+                        {"title": "📅 Tìm theo ngày khác", "payload": "/search_prescription"},
+                        {"title": "🏠 Quay lại menu", "payload": "/greet"}
+                    ]
+                    dispatcher.utter_message(
+                        text="Bạn có muốn thử cách khác không?", 
+                        buttons=buttons
+                    )
+                    cursor.close()
+                    conn.close()
+                    return self._reset_slots()
+                
+                title = f"Toa thuốc ngày {prescription_date}"
+            
+            cursor.close()
+            conn.close()
+            
+            # Hiển thị kết quả bằng HTML table
+            self._display_prescription_table(dispatcher, prescriptions, title)
+            
+            # Offer next action
+            buttons = [
+                {"title": "📅 Tìm toa thuốc khác", "payload": "/search_prescription"},
+                {"title": "📅 Đặt lịch hẹn", "payload": "/book_appointment"},
+                {"title": "🏠 Quay lại menu", "payload": "/greet"}
+            ]
+            dispatcher.utter_message(text="Bạn có muốn làm gì tiếp theo?", buttons=buttons)
+            
+            return self._reset_slots()
+            
+        except Error as e:
+            dispatcher.utter_message(text=f"❌ Lỗi kết nối cơ sở dữ liệu: {e}")
+            return self._reset_slots()
+
+    def _display_prescription_table(self, dispatcher, prescriptions, title):
+        """Hiển thị toa thuốc dưới dạng bảng HTML"""
+        
+        # Tạo HTML table với styling đẹp
+        html_table = f"""
+        <style>
+            .prescription-container {{
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 10px 0;
+            }}
+            .prescription-title {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px 8px 0 0;
+                font-weight: bold;
+                font-size: 16px;
+            }}
+            .prescription-table {{
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                border-radius: 0 0 8px 8px;
+                overflow: hidden;
+            }}
+            .prescription-table thead {{
+                background: #f8f9fa;
+            }}
+            .prescription-table th {{
+                padding: 12px 8px;
+                text-align: left;
+                font-weight: bold;
+                color: #495057;
+                border-bottom: 2px solid #dee2e6;
+                font-size: 14px;
+            }}
+            .prescription-table td {{
+                padding: 10px 8px;
+                border-bottom: 1px solid #e9ecef;
+                font-size: 14px;
+                color: #333;
+            }}
+            .prescription-table tr:last-child td {{
+                border-bottom: none;
+            }}
+            .prescription-table tr:hover {{
+                background: #f8f9fa;
+            }}
+            .medicine-name {{
+                font-weight: 600;
+                color: #667eea;
+            }}
+            .dosage {{
+                color: #28a745;
+                font-weight: 500;
+            }}
+            .prescription-footer {{
+                background: #f8f9fa;
+                padding: 10px 16px;
+                border-radius: 0 0 8px 8px;
+                margin-top: -1px;
+                font-size: 13px;
+                color: #6c757d;
+                border-top: 2px solid #dee2e6;
+            }}
+            @media screen and (max-width: 600px) {{
+                .prescription-table th,
+                .prescription-table td {{
+                    font-size: 12px;
+                    padding: 8px 6px;
+                }}
+                .prescription-title {{
+                    font-size: 14px;
+                }}
+            }}
+        </style>
+        
+        <div class="prescription-container">
+            <div class="prescription-title">
+                💊 {title}
+            </div>
+            <table class="prescription-table">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên thuốc</th>
+                        <th>Liều lượng</th>
+                        <th>Số lượng</th>
+                        <th>Đơn vị</th>
+                        <th>Thời gian SD</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        # Thêm các dòng dữ liệu
+        for idx, med in enumerate(prescriptions, 1):
+            html_table += f"""
+                    <tr>
+                        <td>{idx}</td>
+                        <td class="medicine-name">{med['tenThuoc']}</td>
+                        <td class="dosage">{med['lieuluong']}</td>
+                        <td>{med['soluong']}</td>
+                        <td>{med['donvi']}</td>
+                        <td>{med['thoigianSD']}</td>
+                    </tr>
+            """
+        
+        html_table += f"""
+                </tbody>
+            </table>
+            <div class="prescription-footer">
+                <strong>Tổng số thuốc:</strong> {len(prescriptions)} loại | 
+                <strong>Mã lần khám:</strong> {prescriptions[0]['maLanKham']}
+            </div>
+        </div>
+        """
+        
+        dispatcher.utter_message(text=html_table)
+
+    def _reset_slots(self):
+        """Reset các slots sau khi hoàn thành"""
+        return [
+            SlotSet("prescription_date", None),
+            SlotSet("search_latest_prescription", False),
+            SlotSet("current_task", None)
+        ]
+
 
 class ActionSetCurrentTask(Action):
     def name(self) -> Text:
@@ -1715,6 +2082,8 @@ class ActionSetCurrentTask(Action):
             return [SlotSet("current_task", "book_appointment")]
         elif intent == 'cancel_appointment':
             return [SlotSet("current_task", "cancel_appointment")]
+        elif intent == 'search_prescription':  # ← THÊM MỚI
+            return [SlotSet("current_task", "search_prescription")]
         return []
 
 
@@ -1722,19 +2091,6 @@ class ActionHandleDeny(Action):
     """
     Custom Action để xử lý intent 'deny': Dừng tất cả forms active, reset slots liên quan,
     và đưa bot về trạng thái mặc định (ví dụ: chào hỏi hoặc menu chính).
-    
-    Sử dụng: 
-    - Trong domain.yml: Thêm intent 'deny' với action này.
-    - Trong rules.yml: Rule như:
-      - rule: Deactivate form on deny
-        condition:
-        - active_loop: book_appointment_form  # Hoặc form khác
-        steps:
-        - intent: deny
-        - action: action_handle_deny
-        - active_loop: null
-    
-    Điều này sẽ tự động deactivate form khi deny trong bất kỳ form nào.
     """
     def name(self) -> Text:
         return "action_handle_deny"
@@ -1766,16 +2122,16 @@ class ActionHandleDeny(Action):
                 SlotSet("selected_appointment_id", None),
                 SlotSet("appointment_date", None)
             ]
-        elif current_task == "search_prescription":
-            events += [SlotSet("prescription_date", None)]
+        elif current_task == "search_prescription":  # ← THÊM MỚI
+            events += [
+                SlotSet("prescription_date", None),
+                SlotSet("search_latest_prescription", False)
+            ]
         
         # Reset current_task và requested_slot
         events += [
             SlotSet("current_task", None),
-            SlotSet("requested_slot", None)  # ← QUAN TRỌNG: Reset requested_slot
+            SlotSet("requested_slot", None)
         ]
-        
-        # Optional: Followup với action mặc định, ví dụ quay về greet
-        # events += [FollowupAction("action_greet")]  # Nếu có action greet custom
         
         return events

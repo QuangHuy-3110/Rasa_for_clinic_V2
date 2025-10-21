@@ -7,14 +7,12 @@ rules:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
 
-  # ← SỬA: Bỏ wait_for_user_input, để action tự return FollowupAction
   - rule: Handle out of scope in any form
     condition:
       - active_loop: book_appointment_form
     steps:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      # Action sẽ tự động gọi FollowupAction(book_appointment_form)
 
   - rule: Handle out of scope in cancel form
     condition:
@@ -22,7 +20,6 @@ rules:
     steps:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      # Action sẽ tự động gọi FollowupAction(cancel_appointment_form)
 
   - rule: Handle out of scope in recommend form
     condition:
@@ -30,7 +27,14 @@ rules:
     steps:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      # Action sẽ tự động gọi FollowupAction(recommend_doctor_form)
+
+  # ← THÊM: Handle out of scope trong prescription form
+  - rule: Handle out of scope in prescription form
+    condition:
+      - active_loop: search_prescription_form
+    steps:
+      - intent: out_of_scope
+      - action: action_handle_out_of_scope
 
   # ===================== XỬ LÝ NLU FALLBACK ============================
   - rule: Handle NLU fallback outside form
@@ -38,14 +42,12 @@ rules:
       - intent: nlu_fallback
       - action: action_default_fallback
 
-  # ← SỬA: Bỏ wait_for_user_input, để action tự return FollowupAction
   - rule: Handle NLU fallback in book appointment form
     condition:
       - active_loop: book_appointment_form
     steps:
       - intent: nlu_fallback
       - action: action_default_fallback
-      # Action sẽ tự động gọi FollowupAction(book_appointment_form)
 
   - rule: Handle NLU fallback in cancel appointment form
     condition:
@@ -53,7 +55,6 @@ rules:
     steps:
       - intent: nlu_fallback
       - action: action_default_fallback
-      # Action sẽ tự động gọi FollowupAction(cancel_appointment_form)
 
   - rule: Handle NLU fallback in recommend doctor form
     condition:
@@ -61,7 +62,97 @@ rules:
     steps:
       - intent: nlu_fallback
       - action: action_default_fallback
-      # Action sẽ tự động gọi FollowupAction(recommend_doctor_form)
+
+  # ← THÊM: Handle fallback trong prescription form
+  - rule: Handle NLU fallback in prescription form
+    condition:
+      - active_loop: search_prescription_form
+    steps:
+      - intent: nlu_fallback
+      - action: action_default_fallback
+
+  # ===================== TÌM TOA THUỐC ============================
+
+  # ← THÊM: Kích hoạt form tìm toa thuốc
+  - rule: Activate search prescription form
+    steps:
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+
+  # ← THÊM: Submit form và hiển thị kết quả
+  - rule: Submit search prescription form
+    condition:
+      - active_loop: search_prescription_form
+    steps:
+      - action: search_prescription_form
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Xử lý tìm toa thuốc mới nhất
+  - rule: Request latest prescription
+    steps:
+      - intent: request_latest_prescription
+      - action: action_get_latest_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+
+  # ← THÊM: Giải thích chuyên khoa trong prescription form
+  - rule: Handle explain interruption in search_prescription
+    condition:
+      - slot_was_set:
+          - just_explained: true
+      - slot_was_set:
+          - current_task: search_prescription
+    steps:
+      - action: action_explain_specialty_in_form
+      - slot_was_set:
+          - just_explained: false
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+    wait_for_user_input: false
+
+  # ← THÊM: Tra cứu thông tin bác sĩ trong prescription form
+  - rule: Handle doctor info interruption in search_prescription
+    condition:
+      - slot_was_set:
+          - just_asked_doctor_info: true
+      - slot_was_set:
+          - current_task: search_prescription
+    steps:
+      - action: action_show_doctor_info_in_form
+      - slot_was_set:
+          - just_asked_doctor_info: false
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+    wait_for_user_input: false
+
+  # ← THÊM: Liệt kê bác sĩ trong prescription form
+  - rule: Handle list doctors interruption in search_prescription
+    condition:
+      - slot_was_set:
+          - just_listed_doctors: true
+      - slot_was_set:
+          - current_task: search_prescription
+    steps:
+      - action: action_list_doctors_in_form
+      - slot_was_set:
+          - just_listed_doctors: false
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+    wait_for_user_input: false
+
+  # ← THÊM: Xử lý deny trong prescription form
+  - rule: Handle deny in prescription form
+    condition:
+      - active_loop: search_prescription_form
+    steps:
+      - intent: deny
+      - action: action_handle_deny
+      - active_loop: null
+      - action: utter_ask_intent
+      - action: action_listen
 
   # ===================== Đề xuất bác sĩ ============================
   - rule: Activate recommend doctor form
@@ -237,25 +328,6 @@ rules:
       - intent: affirm
       - action: action_perform_cancel
 
-  # - rule: Reset cancel on deny
-  #   condition:
-  #     - slot_was_set:
-  #         - current_task: cancel_appointment
-  #   steps:
-  #     - intent: deny
-  #     - action: action_handle_deny
-
-  # ===================== Xác nhận hủy lịch - BỔ SUNG ============================
-  # - rule: Reset cancel on deny - no reactivation
-  #   condition:
-  #     - slot_was_set:
-  #         - current_task: cancel_appointment
-  #     - active_loop: cancel_appointment_form
-  #   steps:
-  #     - intent: deny
-  #     - action: action_handle_deny
-  #     - action: action_listen # ← Force action_listen ngay
-
   # ===================== Xác nhận đặt lịch ============================
   - rule: Submit booking after affirm
     condition:
@@ -272,7 +344,8 @@ rules:
     steps:
       - intent: deny
       - action: action_handle_deny
-      - action: action_listen # ← THÊM: Force action_listen ngay sau deny
+      - active_loop: null
+      - action: action_listen
 
   # ===================== Misc ============================
   - rule: greet

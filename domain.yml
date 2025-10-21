@@ -21,7 +21,10 @@ intents:
   - select_appointment
   - provide_cancel_date
   - nlu_fallback
-  - out_of_scope # ← THÊM intent mới
+  - out_of_scope
+  - search_prescription # ← THÊM MỚI
+  - provide_prescription_date # ← THÊM MỚI
+  - request_latest_prescription # ← THÊM MỚI
 
 entities:
   - symptom
@@ -33,6 +36,7 @@ entities:
   - time
   - appointment_id
   - doctor_id
+  - prescription_date # ← THÊM MỚI
 
 slots:
   just_listed_doctors:
@@ -76,6 +80,7 @@ slots:
       - request_doctor
       - book_appointment
       - cancel_appointment
+      - search_prescription # ← THÊM MỚI
     mappings:
       - type: custom
 
@@ -101,7 +106,13 @@ slots:
     type: text
     influence_conversation: false
     mappings:
+      - type: from_entity
+        entity: prescription_date
+      - type: from_entity
+        entity: date
+        intent: provide_prescription_date
       - type: from_text
+        intent: provide_prescription_date
       - type: custom
         not_intent:
           - greet
@@ -123,7 +134,17 @@ slots:
           - cancel_appointment
           - provide_cancel_date
           - select_appointment
-          - out_of_scope # ← THÊM vào not_intent
+          - out_of_scope
+          - search_prescription
+          - request_latest_prescription
+
+  # ← THÊM: Slot để đánh dấu tìm toa thuốc mới nhất
+  search_latest_prescription:
+    type: bool
+    initial_value: false
+    influence_conversation: false
+    mappings:
+      - type: custom
 
   doctor_name:
     type: text
@@ -156,7 +177,10 @@ slots:
           - cancel_appointment
           - provide_cancel_date
           - select_appointment
-          - out_of_scope # ← THÊM vào not_intent
+          - out_of_scope
+          - search_prescription
+          - provide_prescription_date
+          - request_latest_prescription
 
   appointment_time:
     type: text
@@ -187,7 +211,10 @@ slots:
           - cancel_appointment
           - provide_cancel_date
           - select_appointment
-          - out_of_scope # ← THÊM vào not_intent
+          - out_of_scope
+          - search_prescription
+          - provide_prescription_date
+          - request_latest_prescription
       - type: custom
 
   decription:
@@ -232,7 +259,10 @@ slots:
           - cancel_appointment
           - provide_cancel_date
           - select_appointment
-          - out_of_scope # ← THÊM vào not_intent
+          - out_of_scope
+          - search_prescription
+          - provide_prescription_date
+          - request_latest_prescription
 
   date:
     type: text
@@ -261,7 +291,10 @@ slots:
           - cancel_appointment
           - provide_cancel_date
           - select_appointment
-          - out_of_scope # ← THÊM vào not_intent
+          - out_of_scope
+          - search_prescription
+          - provide_prescription_date
+          - request_latest_prescription
       - type: custom
 
   selected_appointment_id:
@@ -290,13 +323,14 @@ responses:
           payload: "/book_appointment"
         - title: "❌ Hủy lịch hẹn"
           payload: "/cancel_appointment"
+        - title: "💊 Tra cứu toa thuốc"
+          payload: "/search_prescription"
       metadata:
         html: true
 
   utter_goodbye:
     - text: "Tạm biệt! Chúc bạn sức khỏe."
 
-  # ← THÊM response cho out_of_scope (hiển thị đẹp trong chatbox)
   utter_out_of_scope:
     - text: |
         <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
@@ -309,6 +343,7 @@ responses:
                 <li>🩺 <strong>Đề xuất bác sĩ phù hợp</strong></li>
                 <li>📅 <strong>Đặt lịch hẹn khám</strong></li>
                 <li>❌ <strong>Hủy lịch hẹn</strong></li>
+                <li>💊 <strong>Tra cứu toa thuốc</strong></li>
                 <li>📋 <strong>Tra cứu thông tin bác sĩ và chuyên khoa</strong></li>
             </ul>
             <div style="margin-top: 8px;">👉 Bạn muốn tôi giúp gì trong số những việc trên không?</div>
@@ -318,57 +353,30 @@ responses:
           payload: "/request_doctor"
         - title: "📅 Đặt lịch hẹn"
           payload: "/book_appointment"
-        - title: "❌ Hủy lịch hẹn"
-          payload: "/cancel_appointment"
+        - title: "💊 Tra cứu toa thuốc"
+          payload: "/search_prescription"
       metadata:
         html: true
 
+  # ← THÊM: Responses cho tìm toa thuốc
+  utter_ask_prescription_option:
     - text: |
         <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
-                    background: #f9fbff; border-left: 4px solid #007bff; border-radius: 8px;
-                    padding: 12px 14px;">
-            <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">ℹ️ Rất tiếc!</div>
-            <div>Tôi là chatbot chuyên về <strong>tư vấn và đặt lịch khám bệnh</strong>.</div>
-            <div style="margin-top: 6px;">Bạn có thể hỏi tôi về:</div>
-            <ul style="margin: 6px 0 0 18px; padding: 0;">
-                <li>💬 <strong>Triệu chứng bệnh</strong> để gợi ý bác sĩ</li>
-                <li>📅 <strong>Đặt lịch khám</strong> với bác sĩ</li>
-                <li>❌ <strong>Hủy lịch hẹn</strong></li>
-                <li>📋 <strong>Thông tin bác sĩ và chuyên khoa</strong></li>
-            </ul>
-            <div style="margin-top: 8px;">👉 Bạn muốn làm gì tiếp theo?</div>
+                    background: #f0f8ff; border-left: 4px solid #17a2b8; border-radius: 8px;
+                    padding: 12px 14px; margin: 4px 0;">
+            <div style="font-weight: bold; color: #17a2b8; margin-bottom: 6px;">💊 Tra cứu toa thuốc</div>
+            <div>Bạn muốn tìm toa thuốc như thế nào?</div>
         </div>
       buttons:
-        - title: "🔍 Tìm bác sĩ"
-          payload: "/request_doctor"
-        - title: "📅 Đặt lịch"
-          payload: "/book_appointment"
+        - title: "📋 Toa thuốc mới nhất"
+          payload: "/request_latest_prescription"
+        - title: "📅 Theo ngày khám"
+          payload: "/provide_prescription_date"
       metadata:
         html: true
 
-    - text: |
-        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
-                    background: #fffef5; border-left: 4px solid #ffc107; border-radius: 8px;
-                    padding: 12px 14px;">
-            <div style="font-weight: bold; color: #ffb300; margin-bottom: 6px;">🤖 Tôi chưa được lập trình để xử lý yêu cầu này.</div>
-            <div>Hiện tại tôi chỉ hỗ trợ các chức năng sau:</div>
-            <ul style="margin: 6px 0 0 18px; padding: 0;">
-                <li>🩺 <strong>Đề xuất bác sĩ</strong> dựa trên triệu chứng</li>
-                <li>📅 <strong>Đặt lịch hẹn khám</strong></li>
-                <li>❌ <strong>Hủy lịch hẹn</strong></li>
-                <li>📋 <strong>Tra cứu thông tin bác sĩ / chuyên khoa</strong></li>
-            </ul>
-            <div style="margin-top: 8px;">Vui lòng chọn một trong các chức năng bên dưới 👇</div>
-        </div>
-      buttons:
-        - title: "🩺 Đề xuất bác sĩ"
-          payload: "/request_doctor"
-        - title: "📅 Đặt lịch hẹn"
-          payload: "/book_appointment"
-        - title: "❌ Hủy lịch hẹn"
-          payload: "/cancel_appointment"
-      metadata:
-        html: true
+  # utter_ask_prescription_date:
+  #   - text: "Vui lòng nhập ngày khám bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).\nVí dụ: 15/10/2025"
 
   utter_ask_symptoms:
     - text: "Bạn đang gặp triệu chứng gì? Hãy mô tả chi tiết (có thể liệt kê nhiều, ví dụ: 'đau đầu, sốt')."
@@ -428,7 +436,7 @@ responses:
             <div><strong>Bác sĩ:</strong> {doctor_name}</div>
             <div><strong>Chuyên khoa:</strong> {specialty}</div>
             <div><strong>Thời gian:</strong> {appointment_time} ngày {date}</div>
-            <div><strong>Mô tả bệnh trạng:</strong> “{decription}”</div>
+            <div><strong>Mô tả bệnh trạng:</strong> "{decription}"</div>
             <div style="margin-top: 8px;">👉 Bạn có muốn xác nhận đặt lịch này không?</div>
         </div>
       buttons:
@@ -451,93 +459,6 @@ responses:
   utter_recommend_doctor_success:
     - text: "Dựa trên triệu chứng, tôi gợi ý chuyên khoa: {specialty_suggested}."
 
-  utter_validate_date_wrong_input:
-    - text: "Thông tin bạn nhập không phải ngày tháng. Vui lòng nhập đúng định dạng DD/MM/YYYY."
-
-  utter_validate_date_invalid:
-    - text: "Định dạng ngày không hợp lệ. Vui lòng nhập DD/MM/YYYY."
-
-  utter_validate_date_past:
-    - text: "Không thể đặt lịch trong quá khứ. Vui lòng chọn ngày trong tương lai."
-
-  utter_validate_time_wrong_input:
-    - text: "Thông tin bạn nhập không phải thời gian. Vui lòng nhập HH:MM."
-
-  utter_validate_time_invalid:
-    - text: "Định dạng thời gian không hợp lệ. Vui lòng nhập HH:MM."
-
-  utter_validate_time_outside_hours:
-    - text: "Thời gian phải từ 8:00 đến 17:00. Vui lòng chọn giờ hợp lệ."
-
-  utter_validate_decription_wrong_input:
-    - text: "Thông tin bạn nhập không phải mô tả bệnh. Vui lòng mô tả chi tiết tình trạng."
-
-  utter_doctor_not_found:
-    - text: "Không tìm thấy bác sĩ '{doctor_name}' trong chuyên khoa {specialty}. Vui lòng chọn từ danh sách:"
-
-  utter_search_doctor:
-    - text: "Vui lòng nhập tên bác sĩ bạn muốn tra cứu."
-
-  utter_search_doctor_no_results:
-    - text: "Không tìm thấy bác sĩ '{doctor_name}'."
-
-  utter_search_doctor_results:
-    - text: "Kết quả tra cứu cho '{doctor_name}':"
-
-  utter_specialty_info:
-    - text: "Chuyên khoa {specialty}: {explanation}"
-
-  utter_ask_cancel_date:
-    - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (DD/MM/YYYY)."
-
-  utter_cancel_no_appointments:
-    - text: "Không có lịch hẹn nào trong ngày {appointment_date}."
-
-  utter_cancel_list:
-    - text: "Danh sách lịch hẹn ngày {appointment_date}:"
-
-  utter_confirm_cancel:
-    - text: |
-        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
-                    background: #fff8f8; border-left: 4px solid #dc3545; border-radius: 8px;
-                    padding: 12px 14px; margin: 4px 0;">
-            <div style="font-weight: bold; color: #dc3545; margin-bottom: 6px;">❌ Xác nhận hủy lịch hẹn</div>
-            <div>Bạn có chắc muốn <strong>hủy lịch hẹn mã số</strong> 
-            <span style="color: #b30000;">{selected_appointment_id}</span> không?</div>
-            <div style="margin-top: 8px;">👉 Vui lòng chọn bên dưới để xác nhận.</div>
-        </div>
-      buttons:
-        - title: "✅ Có"
-          payload: "/affirm"
-        - title: "❌ Không"
-          payload: "/deny"
-      metadata:
-        html: true
-
-  utter_cancel_success:
-    - text: "Đã hủy lịch hẹn thành công."
-
-  utter_cancel_error:
-    - text: "Có lỗi khi hủy lịch hẹn. Vui lòng thử lại."
-
-  utter_reset_booking:
-    - text: "Đã hủy yêu cầu đặt lịch. Bạn có thể bắt đầu lại."
-
-  utter_reset_cancel:
-    - text: "Đã hủy hành động hủy lịch. Lịch hẹn vẫn giữ nguyên."
-
-  utter_booking_success:
-    - text: "Đặt lịch thành công! Cảm ơn bạn."
-
-  utter_booking_error:
-    - text: "Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại."
-
-  utter_booking_incomplete:
-    - text: "Thông tin đặt lịch chưa đầy đủ. Vui lòng kiểm tra lại."
-
-  utter_ask_again:
-    - text: "Xin lỗi, tôi không hiểu rõ câu hỏi của bạn. Bạn có thể nói lại hoặc chọn một trong các tùy chọn không?"
-
   utter_ask_intent:
     - text: |
         <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
@@ -553,6 +474,8 @@ responses:
           payload: "/book_appointment"
         - title: "❌ Hủy lịch hẹn"
           payload: "/cancel_appointment"
+        - title: "💊 Tra cứu toa thuốc"
+          payload: "/search_prescription"
       metadata:
         html: true
 
@@ -573,6 +496,11 @@ forms:
       - date
       - appointment_time
       - decription
+
+  # ← THÊM: Form tìm toa thuốc
+  search_prescription_form:
+    required_slots:
+      - prescription_date
 
 actions:
   - action_recommend_doctor
@@ -600,7 +528,10 @@ actions:
   - action_show_doctor_info_in_form
   - action_list_doctors_in_form
   - action_handle_deny
-  - action_handle_out_of_scope # ← THÊM action mới
+  - action_handle_out_of_scope
+  - validate_search_prescription_form # ← THÊM MỚI
+  - action_show_prescription_results # ← THÊM MỚI
+  - action_get_latest_prescription # ← THÊM MỚI
 
 session_config:
   session_expiration_time: 60

@@ -588,3 +588,218 @@ stories:
       - action: action_handle_out_of_scope
       - intent: goodbye # User bỏ cuộc
       - action: utter_goodbye
+
+  # ================================ TÌM TOA THUỐC =============================================================
+
+  # ← THÊM: Happy path tìm toa thuốc theo ngày
+  - story: happy path search prescription by date
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_prescription
+      - action: action_search_prescription
+      - slot_was_set:
+          - current_task: search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Tìm toa thuốc mới nhất
+  - story: search latest prescription
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: request_latest_prescription
+      - action: action_get_latest_prescription
+      - slot_was_set:
+          - search_latest_prescription: true
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Tìm toa thuốc với interruption - explain specialty
+  - story: search prescription with explain specialty interruption
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: explain_specialty
+      - slot_was_set:
+          - just_explained: true
+      - action: action_explain_specialty_in_form
+      - slot_was_set:
+          - just_explained: false
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Tìm toa thuốc với interruption - ask doctor info
+  - story: search prescription with ask doctor info interruption
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: ask_doctor_info
+      - slot_was_set:
+          - just_asked_doctor_info: true
+      - action: action_show_doctor_info_in_form
+      - slot_was_set:
+          - just_asked_doctor_info: false
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Tìm toa thuốc với interruption - list doctors
+  - story: search prescription with list doctors interruption
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: list_doctors_by_specialty
+      - slot_was_set:
+          - just_listed_doctors: true
+      - action: action_list_doctors_in_form
+      - slot_was_set:
+          - just_listed_doctors: false
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Không tìm thấy toa thuốc
+  - story: search prescription not found
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "01/01/2020"
+      - active_loop: null
+      - action: action_show_prescription_results
+      - intent: request_latest_prescription
+      - action: action_get_latest_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+
+  # ← THÊM: Deny trong prescription form
+  - story: deny during prescription form
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: deny
+      - action: action_handle_deny
+      - active_loop: null
+      - slot_was_set:
+          - current_task: null
+      - action: utter_ask_intent
+
+  # ← THÊM: Out of scope trong prescription form
+  - story: out of scope during prescription form
+    steps:
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: out_of_scope
+      - action: action_handle_out_of_scope
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: NLU fallback trong prescription form
+  - story: nlu fallback in prescription form
+    steps:
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Multiple fallbacks trong prescription form
+  - story: multiple nlu fallbacks in prescription form
+    steps:
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      - intent: provide_prescription_date
+      - slot_was_set:
+          - prescription_date: "15/10/2025"
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ← THÊM: Tìm toa thuốc sau khi đặt lịch
+  - story: search prescription after booking
+    steps:
+      - intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi khoa
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      - intent: provide_date
+      - slot_was_set:
+          - date: "20/10/2025"
+      - intent: provide_time
+      - slot_was_set:
+          - appointment_time: "15:00"
+      - intent: provide_decription
+      - slot_was_set:
+          - decription: khám bệnh
+      - active_loop: null
+      - action: action_book_appointment
+      - intent: affirm
+      - action: action_submit_booking
+      - intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
