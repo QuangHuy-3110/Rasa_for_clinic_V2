@@ -91,7 +91,7 @@ stories:
       - action: action_cancel_appointment
       - action: cancel_appointment_form
       - active_loop: cancel_appointment_form
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "21/10/2025"
       - intent: select_appointment # User chọn lịch (fill slot thứ 2)
@@ -118,7 +118,7 @@ stories:
           - just_explained: false
       - action: cancel_appointment_form
       - active_loop: cancel_appointment_form
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "21/10/2025"
       - intent: select_appointment
@@ -145,7 +145,7 @@ stories:
           - just_asked_doctor_info: false
       - action: cancel_appointment_form
       - active_loop: cancel_appointment_form
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "21/10/2025"
       - intent: select_appointment
@@ -172,7 +172,7 @@ stories:
           - just_listed_doctors: false
       - action: cancel_appointment_form
       - active_loop: cancel_appointment_form
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "21/10/2025"
       - intent: select_appointment
@@ -191,7 +191,7 @@ stories:
       - action: action_cancel_appointment
       - action: cancel_appointment_form
       - active_loop: cancel_appointment_form
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "25/10/2025"
       - active_loop: null
@@ -240,7 +240,7 @@ stories:
       - action: action_cancel_appointment
       - action: cancel_appointment_form
       - active_loop: cancel_appointment_form
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "19/10/2025"
       - intent: select_appointment
@@ -364,7 +364,7 @@ stories:
       - intent: out_of_scope # User hỏi về thời tiết chẳng hạn
       - action: action_handle_out_of_scope
       # Form tiếp tục
-      - intent: provide_cancel_date
+      - intent: provide_date
       - slot_was_set:
           - appointment_date: "21/10/2025"
       - active_loop: null
@@ -484,7 +484,7 @@ stories:
       - active_loop: cancel_appointment_form
       - intent: nlu_fallback # User không hiểu cách nhập ngày
       - action: action_default_fallback
-      - intent: provide_cancel_date # Nhập đúng lần 2
+      - intent: provide_date # Nhập đúng lần 2
       - slot_was_set:
           - appointment_date: "22/10/2025"
       - intent: select_appointment
@@ -602,7 +602,7 @@ stories:
           - current_task: search_prescription
       - action: search_prescription_form
       - active_loop: search_prescription_form
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null
@@ -639,7 +639,7 @@ stories:
           - just_explained: false
       - action: search_prescription_form
       - active_loop: search_prescription_form
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null
@@ -662,7 +662,7 @@ stories:
           - just_asked_doctor_info: false
       - action: search_prescription_form
       - active_loop: search_prescription_form
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null
@@ -685,7 +685,7 @@ stories:
           - just_listed_doctors: false
       - action: search_prescription_form
       - active_loop: search_prescription_form
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null
@@ -700,7 +700,7 @@ stories:
       - action: action_search_prescription
       - action: search_prescription_form
       - active_loop: search_prescription_form
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "01/01/2020"
       - active_loop: null
@@ -735,7 +735,7 @@ stories:
       - active_loop: search_prescription_form
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null
@@ -750,7 +750,7 @@ stories:
       - active_loop: search_prescription_form
       - intent: nlu_fallback
       - action: action_default_fallback
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null
@@ -767,7 +767,7 @@ stories:
       - action: action_default_fallback
       - intent: nlu_fallback
       - action: action_default_fallback
-      - intent: provide_prescription_date
+      - intent: provide_date
       - slot_was_set:
           - prescription_date: "15/10/2025"
       - active_loop: null

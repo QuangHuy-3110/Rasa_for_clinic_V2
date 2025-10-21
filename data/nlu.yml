@@ -298,6 +298,12 @@ nlu:
       - [ngoại khoa](specialty) chữa bệnh gì
       - [phụ sản](specialty) là khám gì
       - [răng hàm mặt](specialty) là làm gì
+      - [Nội khoa](specialty) chữa bệnh gì
+      - [nhi khoa](specialty) làm gì
+      - [thần kinh](specialty) chữa bệnh gì vậy
+      - [sản khoa](specialty) là gì nhỉ
+      - cho tôi biết [da liễu](specialty) chữa gì
+      - [tim mạch](specialty) có phải chữa bệnh tim không
 
   - intent: list_doctors_by_specialty
     examples: |
@@ -343,19 +349,19 @@ nlu:
       - tôi bận không đến được
 
   # ============ Intent: provide_cancel_date ============
-  - intent: provide_cancel_date
-    examples: |
-      - [21/10/2025](date)
-      - [22/10/2025](date)
-      - [23/10/2025](date)
-      - ngày [20/10/2025](date)
-      - lịch ngày [25/10/2025](date)
-      - hủy lịch ngày [21/10/2025](date)
-      - tôi muốn hủy lịch ngày [22/10/2025](date)
-      - [19/10/2025](date)
-      - ngày [18/10/2025](date) ạ
-      - vào ngày [24/10/2025](date)
-      - lịch hẹn ngày [26/10/2025](date)
+  # - intent: provide_cancel_date
+  #   examples: |
+  #     - [21/10/2025](date)
+  #     - [22/10/2025](date)
+  #     - [23/10/2025](date)
+  #     - ngày [20/10/2025](date)
+  #     - lịch ngày [25/10/2025](date)
+  #     - hủy lịch ngày [21/10/2025](date)
+  #     - tôi muốn hủy lịch ngày [22/10/2025](date)
+  #     - [19/10/2025](date)
+  #     - ngày [18/10/2025](date) ạ
+  #     - vào ngày [24/10/2025](date)
+  #     - lịch hẹn ngày [26/10/2025](date)
 
   # ============ Intent: select_appointment ============
   - intent: select_appointment
@@ -388,19 +394,19 @@ nlu:
       - tôi muốn biết toa thuốc mà bác sĩ đã kê lần trước
       - xem lại đơn thuốc tôi đã nhận
 
-  - intent: provide_prescription_date
-    examples: |
-      - [21/10/2025](date)
-      - [22/10/2025](date)
-      - [23/10/2025](date)
-      - ngày [20/10/2025](date)
-      - lịch ngày [25/10/2025](date)
-      - toa ngày [21/10/2025](date)
-      - tôi muốn tìm toa thuốc ngày [22/10/2025](date)
-      - [19/10/2025](date)
-      - ngày [18/10/2025](date) ạ
-      - vào ngày [24/10/2025](date)
-      - toa thuốc ngày [26/10/2025](date)
+  # - intent: provide_prescription_date
+  #   examples: |
+  #     - [21/10/2025](date)
+  #     - [22/10/2025](date)
+  #     - [23/10/2025](date)
+  #     - ngày [20/10/2025](date)
+  #     - lịch ngày [25/10/2025](date)
+  #     - toa ngày [21/10/2025](date)
+  #     - tôi muốn tìm toa thuốc ngày [22/10/2025](date)
+  #     - [19/10/2025](date)
+  #     - ngày [18/10/2025](date) ạ
+  #     - vào ngày [24/10/2025](date)
+  #     - toa thuốc ngày [26/10/2025](date)
 
   - intent: request_latest_prescription
     examples: |

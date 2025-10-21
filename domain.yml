@@ -19,11 +19,11 @@ intents:
   - list_doctors_by_specialty
   - cancel_appointment
   - select_appointment
-  - provide_cancel_date
+  # - provide_cancel_date
   - nlu_fallback
   - out_of_scope
   - search_prescription # ← THÊM MỚI
-  - provide_prescription_date # ← THÊM MỚI
+  # - provide_prescription_date # ← THÊM MỚI
   - request_latest_prescription # ← THÊM MỚI
 
 entities:
@@ -96,9 +96,12 @@ slots:
     mappings:
       - type: from_entity
         entity: date
+        intent: # ← THÊM: Hạn chế intent để tránh set sai
+          # - provide_cancel_date
+          - provide_date
       - type: from_text
         intent:
-          - provide_cancel_date
+          # - provide_cancel_date
           - provide_date
       - type: custom
 
@@ -108,13 +111,14 @@ slots:
     mappings:
       - type: from_entity
         entity: prescription_date
+        intent: provide_date # ← THAY ĐỔI: Thêm hạn chế intent
       - type: from_entity
         entity: date
-        intent: provide_prescription_date
+        intent: provide_date
       - type: from_text
-        intent: provide_prescription_date
+        intent: provide_date
       - type: custom
-        not_intent:
+        not_intent: # ← THAY ĐỔI: Thêm nlu_fallback vào not_intent
           - greet
           - goodbye
           - affirm
@@ -132,19 +136,44 @@ slots:
           - ask_doctor_info
           - list_doctors_by_specialty
           - cancel_appointment
-          - provide_cancel_date
+          # - provide_cancel_date
           - select_appointment
           - out_of_scope
           - search_prescription
           - request_latest_prescription
+          - nlu_fallback # ← THÊM
 
-  # ← THÊM: Slot để đánh dấu tìm toa thuốc mới nhất
   search_latest_prescription:
     type: bool
     initial_value: false
     influence_conversation: false
     mappings:
       - type: custom
+        not_intent: # ← THAY ĐỔI: Thêm nlu_fallback vào not_intent
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - provide_date
+          - provide_time
+          - provide_decription
+          - provide_medical_info
+          - choose_doctor_name
+          - book_with_doctor
+          - explain_specialty
+          - ask_doctor_info
+          - list_doctors_by_specialty
+          - cancel_appointment
+          # - provide_cancel_date
+          - select_appointment
+          - out_of_scope
+          - search_prescription
+          # - provide_date
+          - request_latest_prescription
+          - nlu_fallback # ← THÊM
 
   doctor_name:
     type: text
@@ -152,12 +181,11 @@ slots:
     mappings:
       - type: from_entity
         entity: doctor_name
-      - type: from_entity
-        entity: doctor_name
-        intent: choose_doctor_name
+        intent: # ← THÊM: Hạn chế intent
+          - choose_doctor_name
       - type: custom
       - type: from_text
-        not_intent:
+        not_intent: # ← THAY ĐỔI: Thêm nlu_fallback vào not_intent
           - greet
           - goodbye
           - affirm
@@ -175,12 +203,13 @@ slots:
           - ask_doctor_info
           - list_doctors_by_specialty
           - cancel_appointment
-          - provide_cancel_date
+          # - provide_cancel_date
           - select_appointment
           - out_of_scope
           - search_prescription
-          - provide_prescription_date
+          # - provide_date
           - request_latest_prescription
+          - nlu_fallback # ← THÊM
 
   appointment_time:
     type: text
@@ -188,10 +217,12 @@ slots:
     mappings:
       - type: from_entity
         entity: appointment_time
+        intent: provide_time # ← THÊM: Hạn chế intent
       - type: from_entity
         entity: time
+        intent: provide_time
       - type: from_text
-        not_intent:
+        not_intent: # ← THAY ĐỔI: Thêm nlu_fallback vào not_intent
           - greet
           - goodbye
           - affirm
@@ -209,12 +240,13 @@ slots:
           - ask_doctor_info
           - list_doctors_by_specialty
           - cancel_appointment
-          - provide_cancel_date
+          # - provide_cancel_date
           - select_appointment
           - out_of_scope
           - search_prescription
-          - provide_prescription_date
+          # - provide_date
           - request_latest_prescription
+          - nlu_fallback # ← THÊM
       - type: custom
 
   decription:
@@ -223,6 +255,9 @@ slots:
     mappings:
       - type: from_entity
         entity: decription
+        intent: # ← THÊM: Hạn chế intent
+          - provide_decription
+          - provide_medical_info
       - type: from_text
         intent:
           - provide_decription
@@ -240,7 +275,7 @@ slots:
         intent: provide_specialty
       - type: custom
       - type: from_text
-        not_intent:
+        not_intent: # ← THAY ĐỔI: Thêm nlu_fallback vào not_intent
           - greet
           - goodbye
           - affirm
@@ -257,12 +292,13 @@ slots:
           - ask_doctor_info
           - list_doctors_by_specialty
           - cancel_appointment
-          - provide_cancel_date
+          # - provide_cancel_date
           - select_appointment
           - out_of_scope
           - search_prescription
-          - provide_prescription_date
+          # - provide_date
           - request_latest_prescription
+          - nlu_fallback # ← THÊM
 
   date:
     type: text
@@ -270,8 +306,10 @@ slots:
     mappings:
       - type: from_entity
         entity: date
+        intent: # ← THÊM: Hạn chế intent để tránh set sai trên fallback
+          - provide_date
       - type: from_text
-        not_intent:
+        not_intent: # ← THAY ĐỔI: Thêm nlu_fallback vào not_intent
           - greet
           - goodbye
           - affirm
@@ -289,12 +327,13 @@ slots:
           - ask_doctor_info
           - list_doctors_by_specialty
           - cancel_appointment
-          - provide_cancel_date
+          # - provide_cancel_date
           - select_appointment
           - out_of_scope
           - search_prescription
-          - provide_prescription_date
+          # - provide_date
           - request_latest_prescription
+          - nlu_fallback # ← THÊM
       - type: custom
 
   selected_appointment_id:
@@ -371,7 +410,7 @@ responses:
         - title: "📋 Toa thuốc mới nhất"
           payload: "/request_latest_prescription"
         - title: "📅 Theo ngày khám"
-          payload: "/provide_prescription_date"
+          payload: "/provide_date"
       metadata:
         html: true
 
@@ -408,8 +447,8 @@ responses:
   utter_ask_date:
     - text: "Bạn muốn đặt lịch vào ngày nào? Vui lòng cho biết ngày cụ thể."
 
-  utter_ask_appointment_date:
-    - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY)."
+  # utter_ask_appointment_date:
+  #   - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY)."
 
   utter_confirm:
     - text: |

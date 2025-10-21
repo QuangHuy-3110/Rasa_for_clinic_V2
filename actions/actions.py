@@ -940,149 +940,66 @@ class ValidateBookAppointmentForm(FormValidationAction):
         else:
             latest_intent = latest_message.get('intent', {}).get('name')
 
-        # === Xử lý explain_specialty ===
+        # Xử lý các interruption
         if latest_intent == "explain_specialty":
-            entities = (getattr(latest_message, 'entities', []) 
-                    if hasattr(latest_message, 'entities') 
-                    else latest_message.get('entities', []))
-            specialty_entity = next((e.get('value') for e in entities 
-                                    if e.get('entity') == 'specialty'), None)
-            
-            # LUÔN LUÔN thực hiện giải thích
             explain_action = ActionExplainSpecialtyInForm()
             explain_action.run(dispatcher, tracker, {})
-            
-            # KHÔNG set specialty vào slot - chỉ hỏi thôi, chưa chọn
-            # Giữ nguyên giá trị specialty hiện tại (hoặc None nếu chưa có)
             return {
-                "specialty": tracker.get_slot("specialty"),  # ← Giữ nguyên giá trị cũ
+                "specialty": tracker.get_slot("specialty"),
                 "just_explained": False,
             }
         
-        # === Xử lý ask_doctor_info ===
         if latest_intent == "ask_doctor_info":
-            # LUÔN LUÔN thực hiện tra cứu
             info_action = ActionShowDoctorInfoInForm()
             info_action.run(dispatcher, tracker, {})
-            
-            # KHÔNG set doctor_name vào slot - chỉ tra cứu thông tin
-            # Giữ nguyên giá trị đã chọn trước đó (hoặc None)
             return {
-                "doctor_name": tracker.get_slot("doctor_name"),  # ← Giữ nguyên giá trị cũ
+                "doctor_name": tracker.get_slot("doctor_name"),
                 "just_asked_doctor_info": False,
             }
         
-        # === Xử lý list_doctors_by_specialty ===
         if latest_intent == "list_doctors_by_specialty":
-            entities = (getattr(latest_message, 'entities', []) 
-                    if hasattr(latest_message, 'entities') 
-                    else latest_message.get('entities', []))
-            specialty_entity = next((e.get('value') for e in entities 
-                                    if e.get('entity') == 'specialty'), None)
-            
-            # LUÔN LUÔN thực hiện list
             list_action = ActionListDoctorsInForm()
             list_action.run(dispatcher, tracker, {})
-            
-            # KHÔNG set specialty vào slot - chỉ xem danh sách
             return {
-                "specialty": tracker.get_slot("specialty"),  # ← Giữ nguyên giá trị cũ
+                "specialty": tracker.get_slot("specialty"),
                 "just_listed_doctors": False,
             }
         
         return {}
 
-    def validate_date(
-        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> Dict[Text, Any]:
-        if not slot_value:
-            dispatcher.utter_message(text="Vui lòng cung cấp ngày hẹn.")
-            return {"date": None}
-
-        date_input = str(slot_value).strip()
-        if self._detect_wrong_input('date', date_input):
-            dispatcher.utter_message(text="Tôi nghĩ bạn đang mô tả bệnh, nhưng hiện tại tôi cần ngày hẹn trước. Vui lòng nhập ngày theo định dạng DD/MM/YYYY (ví dụ: 15/10/2025).")
-            return {"date": None}
-
-        try:
-            parsed_date = datetime.strptime(date_input, '%d/%m/%Y')
-        except ValueError:
-            dispatcher.utter_message(text="Ngày bạn nhập không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
-            return {"date": None}
-
-        today = datetime.now().date()
-        if parsed_date.date() < today:
-            dispatcher.utter_message(text="Ngày hẹn phải trong tương lai. Vui lòng chọn ngày khác.")
-            return {"date": None}
-
-        return {"date": date_input}
-
-    def validate_appointment_time(
-        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> Dict[Text, Any]:
-        if not slot_value:
-            dispatcher.utter_message(text="Vui lòng cung cấp thời gian hẹn.")
-            return {"appointment_time": None}
-
-        time_input = str(slot_value).strip()
-        if self._detect_wrong_input('appointment_time', time_input):
-            dispatcher.utter_message(text="Đó có vẻ là thông tin khác (như ngày hoặc mô tả). Vui lòng nhập thời gian theo định dạng HH:MM (ví dụ: 14:30).")
-            return {"appointment_time": None}
-
-        try:
-            parsed_time = datetime.strptime(time_input, '%H:%M')
-            hour = parsed_time.hour
-            if not (8 <= hour < 17):
-                dispatcher.utter_message(text="Thời gian hẹn phải trong giờ làm việc (8:00 - 17:00). Vui lòng chọn lại.")
-                return {"appointment_time": None}
-        except ValueError:
-            dispatcher.utter_message(text="Thời gian bạn nhập không hợp lệ. Vui lòng nhập theo định dạng HH:MM.")
-            return {"appointment_time": time_input}
-
-        return {"appointment_time": time_input}
-
-    def validate_decription(
-        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> Dict[Text, Any]:
-        if not slot_value:
-            dispatcher.utter_message(text="Vui lòng cung cấp mô tả chi tiết về tình trạng của bạn.")
-            return {"decription": None}
-
-        desc_input = str(slot_value).strip()
-        if self._detect_wrong_input('decription', desc_input):
-            dispatcher.utter_message(text="Đó có vẻ là thông tin khác (như ngày hoặc bác sĩ). Vui lòng mô tả bệnh chi tiết.")
-            return {"decription": None}
-
-        if len(desc_input) < 5:
-            dispatcher.utter_message(text="Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết.")
-            return {"decription": None}
-
-        # RE-SET tất cả required slots khác về giá trị hiện tại
-        slot_values = {
-            "decription": desc_input,
-            "date": tracker.get_slot("date"),
-            "specialty": tracker.get_slot("specialty"),
-            "doctor_name": tracker.get_slot("doctor_name"),
-            "appointment_time": tracker.get_slot("appointment_time")
-        }
-
-        return slot_values
-
     def validate_specialty(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # ===== CHECK INTERRUPTION TRƯỚC =====
-        interruption_result = self._handle_form_interruption(dispatcher, tracker)
-        if interruption_result:
-            # Interruption đã xử lý và return kết quả với flag reset
-            return interruption_result
+        """Validate chuyên khoa - không có ràng buộc đặc biệt"""
         
-        # ===== VALIDATION BÌNH THƯỜNG =====
+        # === CHECK INTERRUPTION TRƯỚC - LẤY GIÁ TRỊ CŨ ===
+        latest_intent = tracker.latest_message.get('intent', {}).get('name')
+        old_specialty = tracker.get_slot("specialty")
+        
+        # Nếu là intent interruption, xử lý và giữ nguyên slot cũ
+        if latest_intent in ["explain_specialty", "ask_doctor_info", "list_doctors_by_specialty"]:
+            interruption_result = self._handle_form_interruption(dispatcher, tracker)
+            if interruption_result:
+                # Trả về giá trị cũ thay vì giá trị mới bị extract sai
+                return {"specialty": old_specialty}
+        
+        # === VALIDATION BÌNH THƯỜNG ===
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng chọn chuyên khoa.")
             return {"specialty": None}
 
         specialty_input = str(slot_value).strip().lower()
+        
+        # Detect nếu user hỏi thay vì trả lời (fallback detection)
+        question_keywords = ["là gì", "chữa gì", "làm gì", "có phải", "giải thích", "thông tin"]
+        if any(kw in specialty_input for kw in question_keywords):
+            dispatcher.utter_message(
+                text="Tôi nhận thấy bạn đang hỏi về chuyên khoa. "
+                     "Bạn có thể hỏi riêng hoặc vui lòng chỉ nhập TÊN chuyên khoa để đặt lịch.\n"
+                     "Ví dụ: 'nội khoa', 'nhi khoa', 'thần kinh'."
+            )
+            return {"specialty": old_specialty}
+        
         if self._detect_wrong_input('specialty', specialty_input):
             dispatcher.utter_message(
                 text="Đó có vẻ là thông tin khác. Vui lòng nhập tên chuyên khoa."
@@ -1093,218 +1010,511 @@ class ValidateBookAppointmentForm(FormValidationAction):
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT tenCK FROM chuyenkhoa")
-            specialties = [row['tenCK'].lower() for row in cursor.fetchall()]
+            query = "SELECT tenCK, maCK FROM chuyenkhoa WHERE LOWER(tenCK) = %s"
+            cursor.execute(query, (specialty_input,))
+            result = cursor.fetchone()
             cursor.close()
             conn.close()
         except Error as e:
             dispatcher.utter_message(text=f"Lỗi DB: {e}")
             return {"specialty": None}
 
-        if specialty_input not in specialties:
-            dispatcher.utter_message(text=f"Chuyên khoa '{slot_value}' không có.")
-            # for s in specialties[:5]:
-            #     dispatcher.utter_message(text=f"- {s.title()}")
-            # return {"specialty": None}
+        if not result:
+            dispatcher.utter_message(text=f"Chuyên khoa '{slot_value}' không tồn tại trong hệ thống.")
+            return {"specialty": None}
 
-        return {"specialty": slot_value.title()}
+        return {"specialty": result['tenCK']}
 
-       
     def validate_doctor_name(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        # ===== CHECK INTERRUPTION TRƯỚC =====
+        """
+        Validate bác sĩ - PHẢI THUỘC CHUYÊN KHOA ĐÃ CHỌN
+        """
+        
+        # Check interruption
         interruption_result = self._handle_form_interruption(dispatcher, tracker)
         if interruption_result:
-            # Interruption đã xử lý và return kết quả với flag reset
             return interruption_result
         
-        # ===== VALIDATION BÌNH THƯỜNG =====
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng chọn bác sĩ.")
             return {"doctor_name": None}
 
         doctor_input = str(slot_value).strip()
         if self._detect_wrong_input('doctor_name', doctor_input):
-            dispatcher.utter_message(text="Đó có vẻ là thông tin khác. Vui lòng nhập tên bác sĩ hoặc chọn từ danh sách.")
+            dispatcher.utter_message(text="Đó có vẻ là thông tin khác. Vui lòng nhập tên bác sĩ.")
             return {"doctor_name": None}
 
+        # LẤY CHUYÊN KHOA ĐÃ CHỌN
         specialty = tracker.get_slot("specialty")
+        if not specialty:
+            dispatcher.utter_message(text="Lỗi: Chưa có thông tin chuyên khoa. Vui lòng chọn lại từ đầu.")
+            return {"doctor_name": None}
+
+        # KIỂM TRA BÁC SĨ PHẢI THUỘC CHUYÊN KHOA ĐÃ CHỌN
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
-            if specialty:
-                cursor.execute("""
-                    SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-                    FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
-                    JOIN chuyenkhoa ck ON cm.maCK = ck.maCK WHERE ck.tenCK = %s
-                """, (specialty,))
-            else:
-                cursor.execute("""
-                    SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-                    FROM bacsi bs JOIN chuyenmon cm ON bs.maBS = cm.maBS
-                    JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
-                """)
-            doctors = cursor.fetchall()
-        except Error as e:
-            dispatcher.utter_message(text=f"Lỗi DB: {e}")
-            cursor.close()
-            conn.close()
-            return {"doctor_name": None}
-
-        matched = [doc for doc in doctors if doctor_input.lower() in doc["tenBS"].lower()]
-        if not matched:
-            # Khi không tìm thấy bác sĩ
-            not_found_html = f"""
-            <div style="font-family: Arial, sans-serif; background: #f8f9fa;
-                        border-left: 5px solid #dc3545; border-radius: 8px;
-                        padding: 12px 16px; margin-bottom: 10px;">
-                <p style="color: #dc3545; font-weight: bold; margin: 0 0 6px 0;">
-                    ❌ Không tìm thấy bác sĩ "<span style='color:#000;'>{doctor_input}</span> ở chuyên khoa {specialty or 'Tất cả chuyên khoa'}".
-                </p>
-                <p style="margin: 4px 0;">👉 Vui lòng chọn một trong các bác sĩ trong chuyên khoa {specialty} được gợi ý dưới đây:</p>
-            </div>
+            
+            # Query chỉ lấy bác sĩ trong chuyên khoa đã chọn
+            query = """
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
+            FROM bacsi bs 
+            JOIN chuyenmon cm ON bs.maBS = cm.maBS
+            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
+            WHERE ck.tenCK = %s AND LOWER(bs.tenBS) LIKE %s
             """
-            dispatcher.utter_message(text=not_found_html, metadata={"html": True})
-
-            # Hiển thị tối đa 3 bác sĩ gợi ý
-            for doc in doctors[:3]:
-                suggestion_html = f"""
-                <div style="background: #ffffff; border: 1px solid #dee2e6;
-                            border-radius: 6px; padding: 8px 12px; margin: 6px 0;
-                            box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-family: Arial, sans-serif;">
-                    <p style="margin: 0;"><strong>🩺 {doc['tenBS']}</strong></p>
-                    <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
-                    <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
+            cursor.execute(query, (specialty, f"%{doctor_input.lower()}%"))
+            matched = cursor.fetchall()
+            
+            if not matched:
+                # Không tìm thấy -> Hiển thị danh sách bác sĩ trong chuyên khoa
+                query_all = """
+                SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
+                FROM bacsi bs 
+                JOIN chuyenmon cm ON bs.maBS = cm.maBS
+                JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
+                WHERE ck.tenCK = %s
+                LIMIT 5
+                """
+                cursor.execute(query_all, (specialty,))
+                doctors_in_specialty = cursor.fetchall()
+                cursor.close()
+                conn.close()
+                
+                not_found_html = f"""
+                <div style="font-family: Arial, sans-serif; background: #fff3cd;
+                            border-left: 5px solid #ffc107; border-radius: 8px;
+                            padding: 12px 16px; margin-bottom: 10px;">
+                    <p style="color: #856404; font-weight: bold; margin: 0 0 6px 0;">
+                        ⚠️ Bác sĩ "<span style='color:#000;'>{doctor_input}</span>" không thuộc chuyên khoa <strong>{specialty}</strong>.
+                    </p>
+                    <p style="margin: 4px 0;">👉 Vui lòng chọn một bác sĩ trong danh sách sau:</p>
                 </div>
                 """
-                dispatcher.utter_message(text=suggestion_html, metadata={"html": True})
+                dispatcher.utter_message(text=not_found_html, metadata={"html": True})
 
-            # dispatcher.utter_message(
-            #     text="<p style='margin-top:8px;'>👉 Vui lòng chọn một trong các bác sĩ trên.</p>",
-            #     metadata={"html": True}
-            # )
+                for doc in doctors_in_specialty:
+                    suggestion_html = f"""
+                    <div style="background: #ffffff; border: 1px solid #dee2e6;
+                                border-radius: 6px; padding: 8px 12px; margin: 6px 0;
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <p style="margin: 0;"><strong>🩺 {doc['tenBS']}</strong></p>
+                        <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+                        <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
+                    </div>
+                    """
+                    dispatcher.utter_message(text=suggestion_html, metadata={"html": True})
 
+                return {"doctor_name": None}
+            
+            # Tìm thấy bác sĩ hợp lệ
+            doc = matched[0]
             cursor.close()
             conn.close()
+            
+            confirm_html = f"""
+            <div style="font-family: Arial, sans-serif; background: #d1ecf1;
+                        border-left: 5px solid #0c5460; border-radius: 8px;
+                        padding: 12px 16px;">
+                <p style="font-weight: bold; color: #0c5460; margin: 0 0 6px 0;">✅ Xác nhận bác sĩ:</p>
+                <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
+                <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+                <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
+            </div>
+            """
+            dispatcher.utter_message(text=confirm_html, metadata={"html": True})
+
+            return {"doctor_name": doc["tenBS"]}
+            
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB: {e}")
             return {"doctor_name": None}
 
-        # Khi tìm thấy bác sĩ
-        doc = matched[0]
-        confirm_html = f"""
-        <div style="font-family: Arial, sans-serif; background: #f8f9fa;
-                    border-left: 5px solid #0d6efd; border-radius: 8px;
-                    padding: 12px 16px; margin-top: 10px;">
-            <p style="font-weight: bold; color: #0d6efd; margin: 0 0 6px 0;">✅ Xác nhận thông tin bác sĩ:</p>
-            <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
-            <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
-            <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
-        </div>
+    def validate_date(
+        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
         """
-        dispatcher.utter_message(text=confirm_html, metadata={"html": True})
+        Validate ngày khám - PHẢI LÀ NGÀY BÁC SĨ CÓ LỊCH LÀM VIỆC VÀ KHÔNG NGHỈ
+        """
+        
+        if not slot_value:
+            dispatcher.utter_message(text="Vui lòng cung cấp ngày hẹn.")
+            return {"date": None}
 
-        # ===== FETCH DOCTOR'S SCHEDULE =====
+        date_input = str(slot_value).strip()
+        if self._detect_wrong_input('date', date_input):
+            dispatcher.utter_message(text="Tôi nghĩ bạn đang mô tả bệnh. Vui lòng nhập ngày theo định dạng DD/MM/YYYY.")
+            return {"date": None}
+
+        # Parse ngày
         try:
-            # Define the date range (today + 6 days)
-            today = datetime.now().date()
-            end_date = today + timedelta(days=6)
-            cursor.execute("""
-                SELECT ngaythangnam, giobatdau, gioketthuc, trangthai
-                FROM thoigiankham
-                WHERE maBS = %s AND ngaythangnam BETWEEN %s AND %s
-                ORDER BY ngaythangnam
-            """, (doc['maBS'], today, end_date))
+            parsed_date = datetime.strptime(date_input, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+            return {"date": None}
+
+        # Kiểm tra ngày trong tương lai
+        today = datetime.now().date()
+        if parsed_date < today:
+            dispatcher.utter_message(text="Ngày hẹn phải trong tương lai. Vui lòng chọn ngày khác.")
+            return {"date": None}
+
+        # LẤY THÔNG TIN BÁC SĨ
+        doctor_name = tracker.get_slot("doctor_name")
+        if not doctor_name:
+            dispatcher.utter_message(text="Lỗi: Chưa có thông tin bác sĩ.")
+            return {"date": None}
+
+        # KIỂM TRA BÁC SĨ CÓ LỊCH LÀM VIỆC TRONG NGÀY NÀY KHÔNG
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            # Lấy maBS
+            cursor.execute("SELECT maBS FROM bacsi WHERE tenBS = %s", (doctor_name,))
+            bs_result = cursor.fetchone()
+            if not bs_result:
+                cursor.close()
+                conn.close()
+                dispatcher.utter_message(text="Lỗi: Không tìm thấy mã bác sĩ.")
+                return {"date": None}
+            
+            maBS = bs_result['maBS']
+            
+            # Kiểm tra lịch làm việc trong ngày và trạng thái KHÔNG phải "Nghỉ"
+            query = """
+            SELECT ngaythangnam, giobatdau, gioketthuc, trangthai
+            FROM thoigiankham
+            WHERE maBS = %s 
+              AND DATE(ngaythangnam) = %s 
+              AND trangthai != 'Nghỉ'
+            ORDER BY giobatdau
+            """
+            cursor.execute(query, (maBS, parsed_date))
             schedule = cursor.fetchall()
             cursor.close()
             conn.close()
-        except Error as e:
-            dispatcher.utter_message(text=f"Lỗi DB khi lấy lịch làm việc: {e}")
-            return {"doctor_name": doc["tenBS"]}
-
-        # ===== GENERATE HTML SCHEDULE TABLE =====
-        if not schedule:
-            dispatcher.utter_message(text="Không có lịch làm việc cho bác sĩ này trong tuần tới.")
-            return {"doctor_name": doc["tenBS"]}
-
-        # Create HTML table
-        html_table = """
-        <style>
-            .schedule-table {
-                width: 100%;
-                max-width: 600px;
-                border-collapse: collapse;
-                font-family: Arial, sans-serif;
-                margin: 20px 0;
-            }
-            .schedule-table th, .schedule-table td {
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: left;
-            }
-            .schedule-table th {
-                background-color: #f2f2f2;
-                color: #333;
-            }
-            .schedule-table tr:nth-child(even) {
-                background-color: #f9f9f9;
-            }
-            .schedule-table tr:hover {
-                background-color: #f5f5f5;
-            }
-            @media screen and (max-width: 600px) {
-                .schedule-table th, .schedule-table td {
-                    font-size: 14px;
-                    padding: 6px;
-                }
-            }
-        </style>
-        <table class="schedule-table">
-            <thead>
-                <tr>
-                    <th>Ngày</th>
-                    <th>Giờ bắt đầu</th>
-                    <th>Giờ kết thúc</th>
-                    <th>Trạng thái</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-
-        # Generate table rows
-        for entry in schedule:
-            date_str = entry['ngaythangnam'].strftime('%Y-%m-%d')
-            start_time = entry['giobatdau'].strftime('%H:%M') if entry['giobatdau'] else 'N/A'
-            end_time = entry['gioketthuc'].strftime('%H:%M') if entry['gioketthuc'] else 'N/A'
-            status = entry['trangthai'] if entry['trangthai'] else 'N/A'
-            html_table += f"""
-                <tr>
-                    <td>{date_str}</td>
-                    <td>{start_time}</td>
-                    <td>{end_time}</td>
-                    <td>{status}</td>
-                </tr>
+            
+            if not schedule:
+                dispatcher.utter_message(
+                    text=f"❌ Bác sĩ {doctor_name} không có lịch làm việc hoặc đang nghỉ vào ngày {date_input}.\n"
+                         f"Vui lòng chọn ngày khác."
+                )
+                return {"date": None}
+            
+            # Hiển thị lịch làm việc trong ngày
+            schedule_html = f"""
+            <div style="font-family: Arial, sans-serif; background: #e7f3ff;
+                        border-left: 5px solid #007bff; border-radius: 8px;
+                        padding: 12px 16px; margin: 10px 0;">
+                <p style="font-weight: bold; color: #007bff; margin: 0 0 8px 0;">
+                    ✅ Bác sĩ {doctor_name} có lịch làm việc ngày {date_input}:
+                </p>
             """
+            
+            for idx, slot in enumerate(schedule, 1):
+                schedule_html += f"""
+                <div style="background: white; border-radius: 6px; padding: 8px; margin: 4px 0;">
+                    <strong>Ca {idx}:</strong> {slot['giobatdau'].strftime('%H:%M')} - {slot['gioketthuc'].strftime('%H:%M')} 
+                    <span style="color: green;">(✓ {slot['trangthai']})</span>
+                </div>
+                """
+            
+            schedule_html += """
+            </div>
+            """
+            dispatcher.utter_message(text=schedule_html, metadata={"html": True})
+            
+            return {"date": date_input}
+            
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB: {e}")
+            return {"date": None}
 
-        html_table += """
-            </tbody>
-        </table>
+    def validate_appointment_time(
+        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
         """
+        Validate giờ khám - PHẢI NẰM TRONG KHOẢNG giobatdau VÀ gioketthuc CỦA MỘT CA LÀM VIỆC
+        """
+        
+        if not slot_value:
+            dispatcher.utter_message(text="Vui lòng cung cấp thời gian hẹn.")
+            return {"appointment_time": None}
 
-        # Send the HTML table to the dispatcher
-        dispatcher.utter_message(text=f"Lịch làm việc của bác sĩ {doc['tenBS']} trong tuần tới:")
-        dispatcher.utter_message(text=html_table)
+        time_input = str(slot_value).strip()
+        if self._detect_wrong_input('appointment_time', time_input):
+            dispatcher.utter_message(text="Vui lòng nhập thời gian theo định dạng HH:MM (ví dụ: 14:30).")
+            return {"appointment_time": None}
 
-        return {"doctor_name": doc["tenBS"]}
+        # Parse thời gian
+        try:
+            parsed_time = datetime.strptime(time_input, '%H:%M').time()
+        except ValueError:
+            dispatcher.utter_message(text="Thời gian không hợp lệ. Vui lòng nhập theo định dạng HH:MM.")
+            return {"appointment_time": None}
 
-    def validate_any_slot(self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> Dict[Text, Any]:
-        # Kiểm tra nếu latest intent là deny, thì dừng form ngay
-        latest_intent = tracker.latest_message.get('intent', {}).get('name')
-        if latest_intent == 'deny':
-            dispatcher.utter_message(text="Đã hủy yêu cầu. Nếu bạn muốn bắt đầu lại, hãy cho tôi biết!")
-            return {
-                "requested_slot": None,
-            }
-        return {}
+        # LẤY THÔNG TIN BÁC SĨ VÀ NGÀY
+        doctor_name = tracker.get_slot("doctor_name")
+        date_str = tracker.get_slot("date")
+        
+        if not doctor_name or not date_str:
+            dispatcher.utter_message(text="Lỗi: Thiếu thông tin bác sĩ hoặc ngày khám.")
+            return {"appointment_time": None}
+
+        try:
+            parsed_date = datetime.strptime(date_str, '%d/%m/%Y').date()
+        except ValueError:
+            dispatcher.utter_message(text="Lỗi: Ngày khám không hợp lệ.")
+            return {"appointment_time": None}
+
+        # KIỂM TRA GIỜ KHÁM CÓ NẰM TRONG CA LÀM VIỆC NÀO KHÔNG
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            # Lấy maBS
+            cursor.execute("SELECT maBS FROM bacsi WHERE tenBS = %s", (doctor_name,))
+            bs_result = cursor.fetchone()
+            if not bs_result:
+                cursor.close()
+                conn.close()
+                dispatcher.utter_message(text="Lỗi: Không tìm thấy mã bác sĩ.")
+                return {"appointment_time": None}
+            
+            maBS = bs_result['maBS']
+            
+            # Lấy các ca làm việc trong ngày
+            query = """
+            SELECT giobatdau, gioketthuc, trangthai
+            FROM thoigiankham
+            WHERE maBS = %s 
+              AND DATE(ngaythangnam) = %s 
+              AND trangthai != 'Nghỉ'
+            """
+            cursor.execute(query, (maBS, parsed_date))
+            schedule = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if not schedule:
+                dispatcher.utter_message(text="Lỗi: Không tìm thấy lịch làm việc cho ngày này.")
+                return {"appointment_time": None}
+            
+            # Kiểm tra giờ có nằm trong khoảng nào không
+            valid_slot = None
+            for slot in schedule:
+                start_time = slot['giobatdau']
+                end_time = slot['gioketthuc']
+                
+                # Convert to time objects for comparison
+                if isinstance(start_time, timedelta):
+                    start_time = (datetime.min + start_time).time()
+                if isinstance(end_time, timedelta):
+                    end_time = (datetime.min + end_time).time()
+                
+                if start_time <= parsed_time <= end_time:
+                    valid_slot = slot
+                    break
+            
+            if not valid_slot:
+                # Hiển thị các khung giờ hợp lệ
+                error_html = f"""
+                <div style="font-family: Arial, sans-serif; background: #fff3cd;
+                            border-left: 5px solid #ffc107; border-radius: 8px;
+                            padding: 12px 16px;">
+                    <p style="color: #856404; font-weight: bold; margin: 0 0 8px 0;">
+                        ⚠️ Giờ {time_input} không nằm trong ca làm việc nào của bác sĩ.
+                    </p>
+                    <p style="margin: 4px 0;">📋 Các khung giờ hợp lệ trong ngày {date_str}:</p>
+                """
+                
+                for idx, slot in enumerate(schedule, 1):
+                    start = slot['giobatdau']
+                    end = slot['gioketthuc']
+                    if isinstance(start, timedelta):
+                        start = (datetime.min + start).time()
+                    if isinstance(end, timedelta):
+                        end = (datetime.min + end).time()
+                    
+                    error_html += f"""
+                    <div style="background: white; border-radius: 6px; padding: 6px; margin: 4px 0;">
+                        ✓ Ca {idx}: {start.strftime('%H:%M')} - {end.strftime('%H:%M')}
+                    </div>
+                    """
+                
+                error_html += """
+                </div>
+                """
+                dispatcher.utter_message(text=error_html, metadata={"html": True})
+                return {"appointment_time": None}
+            
+            # Thành công
+            start = valid_slot['giobatdau']
+            end = valid_slot['gioketthuc']
+            if isinstance(start, timedelta):
+                start = (datetime.min + start).time()
+            if isinstance(end, timedelta):
+                end = (datetime.min + end).time()
+            
+            success_html = f"""
+            <div style="font-family: Arial, sans-serif; background: #d4edda;
+                        border-left: 5px solid #28a745; border-radius: 8px;
+                        padding: 12px 16px;">
+                <p style="color: #155724; font-weight: bold; margin: 0;">
+                    ✅ Giờ {time_input} hợp lệ (Ca: {start.strftime('%H:%M')} - {end.strftime('%H:%M')})
+                </p>
+            </div>
+            """
+            dispatcher.utter_message(text=success_html, metadata={"html": True})
+            
+            return {"appointment_time": time_input}
+            
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB: {e}")
+            return {"appointment_time": None}
+
+    def validate_decription(
+        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
+        """
+        Validate mô tả bệnh - SAU ĐÓ KIỂM TRA TRÙNG LỊCH
+        """
+        
+        if not slot_value:
+            dispatcher.utter_message(text="Vui lòng cung cấp mô tả chi tiết về tình trạng của bạn.")
+            return {"decription": None}
+
+        desc_input = str(slot_value).strip()
+        if self._detect_wrong_input('decription', desc_input):
+            dispatcher.utter_message(text="Vui lòng mô tả bệnh chi tiết.")
+            return {"decription": None}
+
+        if len(desc_input) < 5:
+            dispatcher.utter_message(text="Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết.")
+            return {"decription": None}
+
+        # ========== KIỂM TRA TRÙNG LỊCH ==========
+        doctor_name = tracker.get_slot("doctor_name")
+        date_str = tracker.get_slot("date")
+        appointment_time_str = tracker.get_slot("appointment_time")
+        
+        if not all([doctor_name, date_str, appointment_time_str]):
+            dispatcher.utter_message(text="Lỗi: Thiếu thông tin để kiểm tra trùng lịch.")
+            return {"decription": None}
+
+        try:
+            parsed_date = datetime.strptime(date_str, '%d/%m/%Y').date()
+            parsed_time = datetime.strptime(appointment_time_str, '%H:%M').time()
+        except ValueError:
+            dispatcher.utter_message(text="Lỗi: Ngày hoặc giờ không hợp lệ.")
+            return {"decription": None}
+
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            # Lấy maBS
+            cursor.execute("SELECT maBS FROM bacsi WHERE tenBS = %s", (doctor_name,))
+            bs_result = cursor.fetchone()
+            if not bs_result:
+                cursor.close()
+                conn.close()
+                return {"decription": desc_input}
+            
+            maBS = bs_result['maBS']
+            
+            # Lấy ca làm việc chứa giờ khám này
+            query_slot = """
+            SELECT giobatdau, gioketthuc
+            FROM thoigiankham
+            WHERE maBS = %s 
+              AND DATE(ngaythangnam) = %s 
+              AND trangthai != 'Nghỉ'
+            """
+            cursor.execute(query_slot, (maBS, parsed_date))
+            slots = cursor.fetchall()
+            
+            target_slot = None
+            for slot in slots:
+                start = slot['giobatdau']
+                end = slot['gioketthuc']
+                if isinstance(start, timedelta):
+                    start = (datetime.min + start).time()
+                if isinstance(end, timedelta):
+                    end = (datetime.min + end).time()
+                
+                if start <= parsed_time <= end:
+                    target_slot = {'start': start, 'end': end}
+                    break
+            
+            if not target_slot:
+                cursor.close()
+                conn.close()
+                return {"decription": desc_input}
+            
+            # Kiểm tra xem đã có lịch nào trong cùng ca này chưa
+            query_duplicate = """
+            SELECT lh.mahen, lh.khunggio
+            FROM lichhen lh
+            WHERE lh.maBN = %s 
+              AND lh.maBS = %s
+              AND DATE(lh.ngaythangnam) = %s
+              AND lh.trangthai != 'hủy'
+            """
+            cursor.execute(query_duplicate, (MA_BN_GLOBAL, maBS, parsed_date))
+            existing_appointments = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            # Kiểm tra xem có lịch nào cùng ca không
+            for appt in existing_appointments:
+                existing_time_str = appt['khunggio']
+                try:
+                    # Parse existing time (có thể là string hoặc time object)
+                    if isinstance(existing_time_str, str):
+                        existing_time = datetime.strptime(existing_time_str, '%H:%M').time()
+                    elif isinstance(existing_time_str, timedelta):
+                        existing_time = (datetime.min + existing_time_str).time()
+                    else:
+                        existing_time = existing_time_str
+                    
+                    # Kiểm tra xem existing_time có nằm trong cùng ca không
+                    if target_slot['start'] <= existing_time <= target_slot['end']:
+                        warning_html = f"""
+                        <div style="font-family: Arial, sans-serif; background: #f8d7da;
+                                    border-left: 5px solid #dc3545; border-radius: 8px;
+                                    padding: 12px 16px;">
+                            <p style="color: #721c24; font-weight: bold; margin: 0 0 8px 0;">
+                                ❌ Bạn đã có lịch hẹn với bác sĩ {doctor_name} trong ca này!
+                            </p>
+                            <p style="margin: 4px 0;">
+                                📅 Ngày: {date_str}<br>
+                                🕐 Giờ đã đặt: {existing_time.strftime('%H:%M')}<br>
+                                🕐 Giờ bạn muốn đặt: {appointment_time_str}<br>
+                                ⏰ Cùng ca: {target_slot['start'].strftime('%H:%M')} - {target_slot['end'].strftime('%H:%M')}
+                            </p>
+                            <p style="margin: 8px 0 0 0; font-weight: bold;">
+                                Vui lòng chọn ca khác hoặc ngày khác để tránh trùng lặp.
+                            </p>
+                        </div>
+                        """
+                        dispatcher.utter_message(text=warning_html, metadata={"html": True})
+                        return {"decription": None}
+                
+                except Exception as e:
+                    print(f"[WARNING] Error parsing existing appointment time: {e}")
+                    continue
+            
+            # Không có trùng lịch -> OK
+            return {"decription": desc_input}
+            
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB khi kiểm tra trùng lịch: {e}")
+            return {"decription": None}
 
 
 class ActionBookAppointment(Action):
