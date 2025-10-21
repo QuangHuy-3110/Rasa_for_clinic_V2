@@ -386,17 +386,127 @@ stories:
       - action: book_appointment_form
       - active_loop: book_appointment_form
 
-  #   - story: nlu fallback then clarify
-  #     steps:
-  #       - intent: greet
-  #       - action: utter_greet
-  #       - intent: nlu_fallback
-  #       - action: action_default_fallback
-  #       - action: action_set_current_task
-  #       - slot_was_set:
-  #           - current_task: book_appointment
-  #       - action: book_appointment_form
-  #       - active_loop: book_appointment_form
+  - story: nlu fallback then clarify
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      - intent: book_appointment # User nói rõ hơn
+      - action: action_set_current_task
+      - slot_was_set:
+          - current_task: book_appointment
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+
+  # ← THÊM: Fallback trong book_appointment_form với recovery
+  - story: nlu fallback during booking form - specialty slot
+    steps:
+      - intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: nlu_fallback # User gõ "ờ", "ừ", "asdfgh"
+      - action: action_default_fallback
+      # Form tự động hỏi lại specialty
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi khoa
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      - intent: provide_date
+      - slot_was_set:
+          - date: "20/10/2025"
+      - intent: provide_time
+      - slot_was_set:
+          - appointment_time: "15:00"
+      - intent: provide_decription
+      - slot_was_set:
+          - decription: khám bệnh
+      - active_loop: null
+      - action: action_book_appointment
+
+  # ← THÊM: Multiple fallbacks trong form
+  - story: multiple nlu fallbacks in booking form
+    steps:
+      - intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: nlu_fallback # Lần 1
+      - action: action_default_fallback
+      - intent: nlu_fallback # Lần 2 - vẫn không hiểu
+      - action: action_default_fallback
+      - intent: provide_specialty # Cuối cùng trả lời đúng
+      - slot_was_set:
+          - specialty: nội khoa
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ B
+      - active_loop: null
+
+  # ← THÊM: Fallback ở nhiều slot khác nhau
+  - story: nlu fallback at different slots in booking form
+    steps:
+      - intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi khoa
+      - intent: nlu_fallback # Fallback ở doctor_name
+      - action: action_default_fallback
+      - intent: choose_doctor_name
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      - intent: nlu_fallback # Fallback ở date
+      - action: action_default_fallback
+      - intent: provide_date
+      - slot_was_set:
+          - date: "21/10/2025"
+      - intent: provide_time
+      - slot_was_set:
+          - appointment_time: "14:00"
+      - intent: provide_decription
+      - slot_was_set:
+          - decription: khám
+      - active_loop: null
+      - action: action_book_appointment
+
+  # ← THÊM: Fallback trong cancel_appointment_form
+  - story: nlu fallback in cancel appointment form
+    steps:
+      - intent: cancel_appointment
+      - action: action_cancel_appointment
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+      - intent: nlu_fallback # User không hiểu cách nhập ngày
+      - action: action_default_fallback
+      - intent: provide_cancel_date # Nhập đúng lần 2
+      - slot_was_set:
+          - appointment_date: "22/10/2025"
+      - intent: select_appointment
+      - slot_was_set:
+          - selected_appointment_id: "LH001"
+      - active_loop: null
+      - action: action_confirm_cancel
+
+  # ← THÊM: Fallback trong recommend_doctor_form
+  - story: nlu fallback in recommend doctor form
+    steps:
+      - intent: request_doctor
+      - action: action_set_current_task
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+      - intent: nlu_fallback # User không biết cách mô tả triệu chứng
+      - action: action_default_fallback
+      - intent: provide_medical_info # Mô tả lại
+      - slot_was_set:
+          - symptoms: [đau đầu, sốt]
+      - active_loop: null
+      - action: action_recommend_doctor
 
   - story: out of scope after recommendation
     steps:

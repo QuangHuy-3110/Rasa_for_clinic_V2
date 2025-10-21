@@ -41,11 +41,12 @@ WRONG_INPUT_KEYWORDS = {
 MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
 
 # Thay thế phần ValidateCancelAppointmentForm và các action liên quan
-
 class ActionHandleOutOfScope(Action):
     """
     Action xử lý các intent không được hỗ trợ (out-of-scope).
     Có thể được trigger trong bất kỳ context nào, kể cả khi đang trong form.
+    
+    QUAN TRỌNG: Trong form, sau khi xử lý sẽ QUAY LẠI FORM bằng FollowupAction
     """
     def name(self) -> Text:
         return "action_handle_out_of_scope"
@@ -71,8 +72,8 @@ class ActionHandleOutOfScope(Action):
             )
             dispatcher.utter_message(text=message)
             
-            # Giữ nguyên form, không deactivate
-            return []
+            # ← QUAN TRỌNG: Quay lại form bằng FollowupAction
+            return [FollowupAction(active_loop)]
         
         else:
             # Không trong form - utter response chi tiết hơn
@@ -90,6 +91,11 @@ class ActionDefaultFallback(Action):
     Action xử lý khi NLU không thể phân loại intent (fallback).
     Khác với out_of_scope: đây là khi bot "không hiểu", 
     còn out_of_scope là khi bot hiểu nhưng không hỗ trợ.
+    
+    QUAN TRỌNG: Trong form, action này sẽ:
+    1. Thông báo không hiểu
+    2. Hỏi lại requested_slot hiện tại
+    3. QUAY LẠI FORM bằng FollowupAction
     """
     def name(self) -> Text:
         return "action_default_fallback"
@@ -102,25 +108,80 @@ class ActionDefaultFallback(Action):
     ) -> List[Dict]:
         
         active_loop = tracker.active_loop.get('name') if tracker.active_loop else None
+        requested_slot = tracker.get_slot('requested_slot')
         
         if active_loop:
-            # Trong form - yêu cầu làm rõ
-            message = (
-                "Xin lỗi, tôi không hiểu rõ ý bạn. "
-                "Vui lòng trả lời câu hỏi hiện tại hoặc nói 'bỏ' để dừng lại."
+            # TRONG FORM - xử lý fallback và tiếp tục form
+            
+            # 1. Thông báo không hiểu
+            dispatcher.utter_message(
+                text="Xin lỗi, tôi không hiểu rõ câu trả lời của bạn. 🤔"
             )
-            dispatcher.utter_message(text=message)
-            return []
+            
+            # 2. Hỏi lại slot hiện tại với gợi ý cụ thể
+            if requested_slot:
+                if requested_slot == "specialty":
+                    dispatcher.utter_message(
+                        text="Vui lòng cho biết bạn muốn khám chuyên khoa nào? "
+                             "Ví dụ: nội khoa, ngoại khoa, nhi khoa, thần kinh, phụ sản, răng hàm mặt."
+                    )
+                elif requested_slot == "doctor_name":
+                    dispatcher.utter_message(
+                        text="Vui lòng nhập tên bác sĩ bạn muốn khám. "
+                             "Ví dụ: bác sĩ Nguyễn Văn A, hoặc chỉ cần nhập 'Nguyễn Văn A'."
+                    )
+                elif requested_slot == "date":
+                    dispatcher.utter_message(
+                        text="Vui lòng nhập ngày hẹn theo định dạng DD/MM/YYYY. "
+                             "Ví dụ: 25/10/2025"
+                    )
+                elif requested_slot == "appointment_time":
+                    dispatcher.utter_message(
+                        text="Vui lòng nhập giờ hẹn theo định dạng HH:MM (từ 8:00 đến 17:00). "
+                             "Ví dụ: 14:30"
+                    )
+                elif requested_slot == "decription":
+                    dispatcher.utter_message(
+                        text="Vui lòng mô tả chi tiết tình trạng sức khỏe của bạn. "
+                             "Ví dụ: 'Con tôi bị sốt 3 ngày, ho nhiều vào ban đêm'."
+                    )
+                elif requested_slot == "appointment_date":
+                    dispatcher.utter_message(
+                        text="Vui lòng nhập ngày bạn muốn hủy lịch theo định dạng DD/MM/YYYY. "
+                             "Ví dụ: 25/10/2025"
+                    )
+                elif requested_slot == "selected_appointment_id":
+                    dispatcher.utter_message(
+                        text="Vui lòng chọn một lịch hẹn từ danh sách bằng cách click vào nút 'Chọn lịch này'."
+                    )
+                elif requested_slot == "symptoms":
+                    dispatcher.utter_message(
+                        text="Vui lòng mô tả các triệu chứng bạn đang gặp phải. "
+                             "Ví dụ: đau đầu, sốt, ho, khó thở."
+                    )
+                else:
+                    # Generic fallback cho các slot khác
+                    dispatcher.utter_message(
+                        text=f"Vui lòng cung cấp thông tin cho: {requested_slot}"
+                    )
+            else:
+                # Không có requested_slot (trường hợp hiếm)
+                dispatcher.utter_message(
+                    text="Vui lòng trả lời câu hỏi phía trên hoặc nói 'hủy' để dừng lại."
+                )
+            
+            # 3. ← QUAN TRỌNG: QUAY LẠI FORM bằng FollowupAction
+            return [FollowupAction(active_loop)]
         
         else:
-            # Ngoài form - gợi ý chức năng
+            # NGOÀI FORM - gợi ý chức năng
             message = (
-                "Xin lỗi, tôi không hiểu yêu cầu của bạn. "
+                "Xin lỗi, tôi không hiểu yêu cầu của bạn. 😕\n\n"
                 "Tôi có thể giúp bạn:\n"
-                "• Đề xuất bác sĩ dựa trên triệu chứng\n"
-                "• Đặt lịch hẹn khám bệnh\n"
-                "• Hủy lịch hẹn\n"
-                "• Tra cứu thông tin bác sĩ và chuyên khoa\n\n"
+                "🩺 Đề xuất bác sĩ dựa trên triệu chứng\n"
+                "📅 Đặt lịch hẹn khám bệnh\n"
+                "❌ Hủy lịch hẹn\n"
+                "📋 Tra cứu thông tin bác sĩ và chuyên khoa\n\n"
                 "Bạn muốn làm gì?"
             )
             dispatcher.utter_message(
@@ -1400,128 +1461,6 @@ class ActionSearchSpecialty(Action):
             SlotSet("specialty", specialty),
             FollowupAction("book_appointment_form")  # ← Force reactivate!
         ]
-    
-# class ActionCancelAppointment(Action):
-#     def name(self) -> Text:
-#         return "action_cancel_appointment"
-
-#     def run(
-#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> List[Dict]:
-#         SlotSet("current_task", "cancel_appointment")  # Set context
-#         appointment_date = tracker.get_slot("appointment_date")
-#         if not appointment_date:
-#             dispatcher.utter_message(
-#                 text="Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY).",
-#                 buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
-#             )
-#             return [SlotSet("appointment_date", None)]
-
-#         # Parse ngày (giả sử format %d/%m/%Y)
-#         try:
-#             parsed_date = datetime.strptime(appointment_date, '%d/%m/%Y').date()
-#         except ValueError:
-#             dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
-#             return [SlotSet("appointment_date", None)]
-
-#         # Query MySQL: Lấy danh sách lịch hẹn của maBN trong ngày đó (trang_thai != 'hủy')
-#         try:
-#             conn = mysql.connector.connect(**DB_CONFIG)
-#             cursor = conn.cursor(dictionary=True)
-#             query = """
-#             SELECT lh.mahen, lh.ngaythangnam, lh.khunggio, bs.tenBS
-#             FROM lichhen lh
-#             JOIN bacsi bs ON lh.maBS = bs.maBS
-#             WHERE lh.maBN = %s AND DATE(lh.ngaythangnam) = %s AND lh.trangthai != 'hủy'
-#             ORDER BY lh.khunggio
-#             """
-#             cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
-#             appointments = cursor.fetchall()
-#             cursor.close()
-#             conn.close()
-#         except Error as e:
-#             dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
-#             return [SlotSet("appointment_date", None)]
-
-#         if not appointments:
-#             dispatcher.utter_message(text=f"Không có lịch hẹn nào trong ngày {appointment_date}.")
-#             buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
-#             dispatcher.utter_message(text="Bạn có muốn hủy ngày khác không?", buttons=buttons)
-#             return [SlotSet("appointment_date", None)]
-
-#         # Hiển thị danh sách với buttons chọn
-#         dispatcher.utter_message(text=f"Danh sách lịch hẹn ngày {appointment_date}:")
-#         for appt in appointments:
-#             appt_text = f"🩺 Bác sĩ {appt['tenBS']} - Giờ: {appt['khunggio']}"
-#             dispatcher.utter_message(
-#                 text=appt_text,
-#                 buttons=[
-#                     {
-#                         "title": f"Chọn lịch {appt['khunggio']}",
-#                         "payload": f"/select_appointment{{\"appointment_id\":\"{appt['mahen']}\"}}"
-#                     }
-#                 ]
-#             )
-
-#         return [SlotSet("appointment_date", None)]
-
-# class ActionConfirmCancel(Action):
-#     def name(self) -> Text:
-#         return "action_confirm_cancel"
-
-#     def run(
-#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> List[Dict]:
-#         # Lấy mahen từ latest_message entities (từ payload chọn)
-#         entities = tracker.latest_message.get('entities', [])
-#         selected_id = next((e['value'] for e in entities if e['entity'] == 'appointment_id'), None)
-        
-#         if not selected_id:
-#             dispatcher.utter_message(text="Không nhận được lịch hẹn để hủy. Hãy thử lại.")
-#             return []
-
-#         # Xác nhận hủy
-#         dispatcher.utter_message(
-#             text=f"Bạn có chắc muốn hủy lịch hẹn ID {selected_id}?",
-#             buttons=[
-#                 {"title": "Xác nhận hủy", "payload": "/affirm"},
-#                 {"title": "Hủy bỏ", "payload": "/deny"}
-#             ]
-#         )
-#         return [SlotSet("selected_appointment_id", selected_id)]
-
-# class ActionPerformCancel(Action):
-#     def name(self) -> Text:
-#         return "action_perform_cancel"
-
-#     def run(
-#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> List[Dict]:
-#         selected_id = tracker.get_slot("selected_appointment_id")
-#         if not selected_id:
-#             dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
-#             return []
-
-#         # Update DB: Set trang_thai = 'hủy'
-#         try:
-#             conn = mysql.connector.connect(**DB_CONFIG)
-#             cursor = conn.cursor()
-#             query = "UPDATE lichhen SET trangthai = 'hủy' WHERE mahen = %s AND maBN = %s"
-#             cursor.execute(query, (selected_id, MA_BN_GLOBAL))
-#             conn.commit()
-#             cursor.close()
-#             conn.close()
-#             if cursor.rowcount > 0:
-#                 dispatcher.utter_message(text=f"Đã hủy thành công lịch hẹn ID {selected_id}.")
-#             else:
-#                 dispatcher.utter_message(text="Không tìm thấy lịch hẹn để hủy.")
-#         except Error as e:
-#             dispatcher.utter_message(text=f"Lỗi cập nhật DB: {e}")
-
-#         buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
-#         dispatcher.utter_message(text="Bạn có muốn hủy lịch khác không?", buttons=buttons)
-#         return [SlotSet("selected_appointment_id", None),
-#                 SlotSet("current_task", None)]
 
 class ActionSearchPrescription(Action):
     def name(self) -> Text:
@@ -1746,8 +1685,11 @@ class ActionHandleDeny(Action):
         elif current_task == "search_prescription":
             events += [SlotSet("prescription_date", None)]
         
-        # Reset current_task chung
-        events += [SlotSet("current_task", None)]
+        # Reset current_task và requested_slot
+        events += [
+            SlotSet("current_task", None),
+            SlotSet("requested_slot", None)  # ← QUAN TRỌNG: Reset requested_slot
+        ]
         
         # Optional: Followup với action mặc định, ví dụ quay về greet
         # events += [FollowupAction("action_greet")]  # Nếu có action greet custom

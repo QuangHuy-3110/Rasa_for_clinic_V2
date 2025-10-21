@@ -7,13 +7,14 @@ rules:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
 
+  # ← SỬA: Bỏ wait_for_user_input, để action tự return FollowupAction
   - rule: Handle out of scope in any form
     condition:
       - active_loop: book_appointment_form
     steps:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      # Không deactivate form
+      # Action sẽ tự động gọi FollowupAction(book_appointment_form)
 
   - rule: Handle out of scope in cancel form
     condition:
@@ -21,7 +22,7 @@ rules:
     steps:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      # Không deactivate form
+      # Action sẽ tự động gọi FollowupAction(cancel_appointment_form)
 
   - rule: Handle out of scope in recommend form
     condition:
@@ -29,13 +30,38 @@ rules:
     steps:
       - intent: out_of_scope
       - action: action_handle_out_of_scope
-      # Không deactivate form
+      # Action sẽ tự động gọi FollowupAction(recommend_doctor_form)
 
   # ===================== XỬ LÝ NLU FALLBACK ============================
-  - rule: Handle NLU fallback
+  - rule: Handle NLU fallback outside form
     steps:
       - intent: nlu_fallback
       - action: action_default_fallback
+
+  # ← SỬA: Bỏ wait_for_user_input, để action tự return FollowupAction
+  - rule: Handle NLU fallback in book appointment form
+    condition:
+      - active_loop: book_appointment_form
+    steps:
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      # Action sẽ tự động gọi FollowupAction(book_appointment_form)
+
+  - rule: Handle NLU fallback in cancel appointment form
+    condition:
+      - active_loop: cancel_appointment_form
+    steps:
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      # Action sẽ tự động gọi FollowupAction(cancel_appointment_form)
+
+  - rule: Handle NLU fallback in recommend doctor form
+    condition:
+      - active_loop: recommend_doctor_form
+    steps:
+      - intent: nlu_fallback
+      - action: action_default_fallback
+      # Action sẽ tự động gọi FollowupAction(recommend_doctor_form)
 
   # ===================== Đề xuất bác sĩ ============================
   - rule: Activate recommend doctor form
@@ -211,13 +237,24 @@ rules:
       - intent: affirm
       - action: action_perform_cancel
 
-  - rule: Reset cancel on deny
-    condition:
-      - slot_was_set:
-          - current_task: cancel_appointment
-    steps:
-      - intent: deny
-      - action: action_handle_deny
+  # - rule: Reset cancel on deny
+  #   condition:
+  #     - slot_was_set:
+  #         - current_task: cancel_appointment
+  #   steps:
+  #     - intent: deny
+  #     - action: action_handle_deny
+
+  # ===================== Xác nhận hủy lịch - BỔ SUNG ============================
+  # - rule: Reset cancel on deny - no reactivation
+  #   condition:
+  #     - slot_was_set:
+  #         - current_task: cancel_appointment
+  #     - active_loop: cancel_appointment_form
+  #   steps:
+  #     - intent: deny
+  #     - action: action_handle_deny
+  #     - action: action_listen # ← Force action_listen ngay
 
   # ===================== Xác nhận đặt lịch ============================
   - rule: Submit booking after affirm
@@ -235,6 +272,7 @@ rules:
     steps:
       - intent: deny
       - action: action_handle_deny
+      - action: action_listen # ← THÊM: Force action_listen ngay sau deny
 
   # ===================== Misc ============================
   - rule: greet
