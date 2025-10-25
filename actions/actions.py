@@ -11,11 +11,13 @@ from dotenv import load_dotenv
 import re  # Thêm để parse payload fallback
 from rasa_sdk.types import DomainDict
 from datetime import datetime, timedelta
-
+import google.generativeai as genai
 
 
 # Load file .env
 load_dotenv()
+
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
 # Kết nối DB từ .env
 DB_CONFIG = {
@@ -39,6 +41,64 @@ WRONG_INPUT_KEYWORDS = {
 
 # Global variable cho mã bệnh nhân (có thể set động từ slot hoặc config sau)
 MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
+
+# === THÊM MỚI ACTION Ở CUỐI FILE HOẶC GẦN CÁC ACTION TRA CỨU KHÁC ===
+
+class ActionShowExaminingDoctorInForm(Action):
+    """
+    Action tra cứu và hiển thị bác sĩ đã khám gần nhất cho bệnh nhân.
+    """
+    def name(self) -> Text:
+        return "action_show_examining_doctor_in_form"
+
+    def run(self, dispatcher, tracker, domain):
+        print(f"[DEBUG] Running ActionShowExaminingDoctorInForm cho bệnh nhân: {MA_BN_GLOBAL}")
+        
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            # Query để lấy bác sĩ khám gần nhất dựa trên maBN
+            query = """
+            SELECT bs.tenBS, lk.ngaythangnamkham 
+            FROM lankham lk
+            JOIN bacsi bs ON lk.maBS = bs.maBS
+            JOIN hosobenhnhan hs ON lk.maHS = hs.maHS
+            WHERE hs.maBN = %s
+            ORDER BY lk.ngaythangnamkham DESC
+            LIMIT 1
+            """
+            cursor.execute(query, (MA_BN_GLOBAL,))
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if result:
+                doctor_name = result['tenBS']
+                last_visit_date = result['ngaythangnamkham'].strftime('%d/%m/%Y')
+                
+                message = f"""
+                <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                            background: #e7f3ff; border-left: 4px solid #007bff; border-radius: 8px;
+                            padding: 12px 14px; margin: 4px 0;">
+                    <div style="font-weight: bold; color: #007bff; margin-bottom: 6px;">🩺 Thông tin bác sĩ khám gần nhất:</div>
+                    <div><strong>Bác sĩ:</strong> {doctor_name}</div>
+                    <div><strong>Ngày khám:</strong> {last_visit_date}</div>
+                    <div style="margin-top: 6px; font-style: italic;">👉 Vui lòng tiếp tục yêu cầu của bạn...</div>
+                </div>
+                """
+                dispatcher.utter_message(text=message, metadata={"html": True})
+            else:
+                dispatcher.utter_message(
+                    text="Không tìm thấy lịch sử khám bệnh nào cho bạn trong hệ thống."
+                )
+                
+        except Error as e:
+            print(f"[ERROR] DB Error in ActionShowExaminingDoctorInForm: {e}")
+            dispatcher.utter_message(text=f"Lỗi khi tra cứu cơ sở dữ liệu: {e}")
+        
+        # Action này chỉ hiển thị thông tin, không set slot
+        # Form sẽ tự động hỏi lại slot đang yêu cầu
+        return []
 
 # Thay thế phần ValidateCancelAppointmentForm và các action liên quan
 class ActionHandleOutOfScope(Action):
@@ -236,6 +296,13 @@ class ValidateCancelAppointmentForm(FormValidationAction):
                 "specialty": tracker.get_slot("specialty"),
                 "just_listed_doctors": False,
             }
+
+        # === THÊM MỚI: Xử lý ask_who_examined_me ===
+        if latest_intent == "ask_who_examined_me":
+            info_action = ActionShowExaminingDoctorInForm()
+            info_action.run(dispatcher, tracker, {})
+            # Trả về slot dummy để form tiếp tục
+            return {"just_asked_examining_doctor": False}
         
         return {}
 
@@ -522,7 +589,7 @@ class ActionListDoctorsInForm(Action):
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
             query = """
-            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS, bs.gioithieu
             FROM bacsi bs
             JOIN chuyenmon cm ON bs.maBS = cm.maBS
             JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
@@ -552,6 +619,7 @@ class ActionListDoctorsInForm(Action):
                     <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
                     <div>📞 <strong>SĐT:</strong> {doc['sdtBS']}</div>
                     <div>✉️ <strong>Email:</strong> {doc.get('emailBS', 'Chưa có')}</div>
+                    <div>✉️ <strong>Giới thiệu:</strong> {doc.get('gioithieu', 'Chưa có phần giới thiệu')}</div>
                 </div>
                 """
 
@@ -602,7 +670,7 @@ class ActionShowDoctorInfoInForm(Action):
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
             query = """
-            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS, bs.gioithieu
             FROM bacsi bs
             JOIN chuyenmon cm ON bs.maBS = cm.maBS
             JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
@@ -622,7 +690,7 @@ class ActionShowDoctorInfoInForm(Action):
                     <div><strong>Chuyên khoa:</strong> {doctor['tenCK']}</div>
                     <div><strong>SĐT:</strong> {doctor['sdtBS']}</div>
                     <div><strong>Email:</strong> {doctor.get('emailBS', 'Chưa có')}</div>
-                    <div><strong>Kinh nghiệm:</strong> 20 năm</div>
+                    <div><strong>Giới thiệu:</strong> {doctor.get('gioithieu', 'Chưa có phần giới thiệu')}</div>
                 </div>
                 <div style="margin-top: 6px; font-size: 15px;">Tiếp tục đặt lịch...</div>
                 """
@@ -648,7 +716,7 @@ class ActionExplainSpecialtyInForm(Action):
     def name(self) -> Text:
         return "action_explain_specialty_in_form"
 
-    def run(self, dispatcher, tracker, domain):
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         specialty = tracker.get_slot("specialty")
         
         if not specialty:
@@ -660,23 +728,39 @@ class ActionExplainSpecialtyInForm(Action):
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
-            query = "SELECT tenCK, maCK FROM chuyenkhoa WHERE tenCK LIKE %s"
+            query = "SELECT tenCK, maCK, mota FROM chuyenkhoa WHERE tenCK LIKE %s"
             cursor.execute(query, (f"%{specialty}%",))
             result = cursor.fetchone()
             cursor.close()
             conn.close()
             
             if result:
-                explanation = result.get('maCK', f"Chuyên khoa {specialty}...")
+                ten_ck = result['tenCK']
+                explanation = result.get('mota')
+                
+                if not explanation:  # If mota is None or empty
+                    # Use Gemini API to generate explanation
+                    model = genai.GenerativeModel('gemini-1.5-flash')  # Or your preferred model
+                    prompt = f"Giải thích ngắn gọn về chuyên khoa y tế '{specialty}' bằng tiếng Việt."
+                    response = model.generate_content(prompt)
+                    explanation = response.text.strip() if response else f"Chuyên khoa {specialty}..."
+                
                 dispatcher.utter_message(
-                    text=f"📋 **{result['tenCK']}**: {explanation}\n\nTiếp tục đặt lịch..."
+                    text=f"""
+                    <div style="background-color: #f0f0f0; padding: 15px; border-radius: 10px; border: 1px solid #ddd; max-width: 400px; margin: 10px auto; font-family: Arial, sans-serif;">
+                        <p style="font-size: 16px; margin: 0;">📋 <strong>{ten_ck}</strong>: {explanation}</p>
+                        <br>
+                        <p style="font-size: 14px; color: #666; margin: 0;">Tiếp tục đặt lịch...</p>
+                    </div>
+                    """
                 )
-                return [SlotSet("specialty", result['tenCK'])]
+                return [SlotSet("specialty", ten_ck)]
             else:
                 dispatcher.utter_message(text=f"Không tìm thấy '{specialty}'.")
                 return [SlotSet("specialty", None)]
         except Exception as e:
             print(f"[ERROR] {e}")
+            dispatcher.utter_message(text="Đã xảy ra lỗi khi truy vấn cơ sở dữ liệu.")
             return []
 
 
@@ -964,6 +1048,13 @@ class ValidateBookAppointmentForm(FormValidationAction):
                 "specialty": tracker.get_slot("specialty"),
                 "just_listed_doctors": False,
             }
+
+        # === THÊM MỚI: Xử lý ask_who_examined_me ===
+        if latest_intent == "ask_who_examined_me":
+            info_action = ActionShowExaminingDoctorInForm()
+            info_action.run(dispatcher, tracker, {})
+            # Trả về slot dummy để form tiếp tục
+            return {"just_asked_examining_doctor": False}
         
         return {}
 
@@ -1956,6 +2047,13 @@ class ValidateSearchPrescriptionForm(FormValidationAction):
                 "just_listed_doctors": False,
             }
         
+        # === THÊM MỚI: Xử lý ask_who_examined_me ===
+        if latest_intent == "ask_who_examined_me":
+            info_action = ActionShowExaminingDoctorInForm()
+            info_action.run(dispatcher, tracker, {})
+            # Trả về slot dummy để form tiếp tục
+            return {"just_asked_examining_doctor": False}
+
         return {}
 
     def validate_prescription_date(

@@ -600,3 +600,14 @@ nlu:
       - uh huh
       - hmmm
       - errr
+
+  - intent: ask_who_examined_me
+    examples: |
+      - bác sĩ nào đã khám tôi
+      - ai đã khám cho tôi lần trước
+      - bác sĩ khám cho tôi là ai
+      - cho tôi biết bác sĩ đã khám tôi
+      - xem lại bác sĩ khám bệnh
+      - lần trước ai khám
+      - bác sĩ nào đã khám cho tôi
+      - tôi muốn biết bác sĩ đã khám tôi

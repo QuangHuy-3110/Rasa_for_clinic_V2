@@ -230,7 +230,7 @@ stories:
       - active_loop: null
       - slot_was_set:
           - current_task: null
-      - action: utter_greet
+      - action: utter_ask_intent
 
   - story: deny cancel appointment confirmation
     steps:
@@ -253,7 +253,7 @@ stories:
       - active_loop: null
       - slot_was_set:
           - current_task: null
-      - action: utter_goodbye
+      - action: utter_ask_intent
 
   - story: deny during book appointment form
     steps:
@@ -305,7 +305,7 @@ stories:
       - active_loop: null
       - slot_was_set:
           - current_task: null
-      - action: utter_greet
+      - action: utter_ask_intent
 
   - story: general deny after greet
     steps:
@@ -803,3 +803,32 @@ stories:
       - action: action_search_prescription
       - action: search_prescription_form
       - active_loop: search_prescription_form
+
+  # ← THÊM: Interruption hỏi bác sĩ đã khám trong book_appointment_form
+  - story: book appointment with ask examining doctor interruption
+    steps:
+      - intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - intent: provide_specialty
+      - slot_was_set:
+          - specialty: nhi khoa
+      - intent: ask_who_examined_me # <-- User ngắt quãng
+      - action: action_show_examining_doctor_in_form # <-- Action xử lý ngắt quãng
+      - action: book_appointment_form # <-- Form tự động hỏi lại slot
+      - active_loop: book_appointment_form
+      - intent: choose_doctor_name # <-- User tiếp tục
+      - slot_was_set:
+          - doctor_name: bác sĩ Anh
+      - intent: provide_date
+      - slot_was_set:
+          - date: "20/10/2025"
+      - intent: provide_time
+      - slot_was_set:
+          - appointment_time: "15:00"
+      - intent: provide_decription
+      - slot_was_set:
+          - decription: khám bệnh
+      - active_loop: null
+      - action: action_book_appointment

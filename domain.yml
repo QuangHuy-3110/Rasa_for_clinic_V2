@@ -25,6 +25,7 @@ intents:
   - search_prescription # ← THÊM MỚI
   # - provide_prescription_date # ← THÊM MỚI
   - request_latest_prescription # ← THÊM MỚI
+  - ask_who_examined_me # ← THÊM MỚI
 
 entities:
   - symptom
@@ -39,6 +40,13 @@ entities:
   - prescription_date # ← THÊM MỚI
 
 slots:
+  just_asked_examining_doctor: # ← THÊM MỚI
+    type: bool
+    initial_value: false
+    influence_conversation: true
+    mappings:
+      - type: custom
+
   just_listed_doctors:
     type: bool
     initial_value: false
@@ -142,6 +150,7 @@ slots:
           - search_prescription
           - request_latest_prescription
           - nlu_fallback # ← THÊM
+          - ask_who_examined_me
 
   search_latest_prescription:
     type: bool
@@ -174,6 +183,7 @@ slots:
           # - provide_date
           - request_latest_prescription
           - nlu_fallback # ← THÊM
+          - ask_who_examined_me
 
   doctor_name:
     type: text
@@ -210,6 +220,7 @@ slots:
           # - provide_date
           - request_latest_prescription
           - nlu_fallback # ← THÊM
+          - ask_who_examined_me
 
   appointment_time:
     type: text
@@ -247,6 +258,7 @@ slots:
           # - provide_date
           - request_latest_prescription
           - nlu_fallback # ← THÊM
+          - ask_who_examined_me
       - type: custom
 
   decription:
@@ -299,6 +311,7 @@ slots:
           # - provide_date
           - request_latest_prescription
           - nlu_fallback # ← THÊM
+          - ask_who_examined_me
 
   date:
     type: text
@@ -334,6 +347,7 @@ slots:
           # - provide_date
           - request_latest_prescription
           - nlu_fallback # ← THÊM
+          - ask_who_examined_me
       - type: custom
 
   selected_appointment_id:
@@ -571,6 +585,7 @@ actions:
   - validate_search_prescription_form # ← THÊM MỚI
   - action_show_prescription_results # ← THÊM MỚI
   - action_get_latest_prescription # ← THÊM MỚI
+  - action_show_examining_doctor_in_form
 
 session_config:
   session_expiration_time: 60
