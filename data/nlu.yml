@@ -26,6 +26,7 @@ nlu:
       - ê em ơi 
       - ê m
       - m ơi
+      - E
 
   - intent: goodbye
     examples: |
@@ -67,6 +68,13 @@ nlu:
       - đề xuất bác sĩ mày ơi
       - đề xuất bác sĩ giúp tao
       - giúp tôi đề xuất bác sĩ
+      - ê đề xuất bác sĩ cho tôi đi bạn
+      - ê đề xuất bác sĩ giúp tôi đi bạn
+      - ê đề xuất bác sĩ cho tao đi mày
+      - ê đề xuất bác sĩ giúp tao đi mày
+      - tao cần bạn đề xuất bác sĩ
+      - tao muốn bạn đề xuất bác sĩ
+      - tao cần đề xuất bác sĩ mày ơi
       - tôi cần đề xuất bác sĩ bạn ơi
       - tôi muốn tìm bác sĩ để khám bệnh
       - tôi cần tìm bác sĩ để khám bệnh
@@ -150,6 +158,30 @@ nlu:
       - tôi muốn bạn hỗ trợ tôi đặt lịch khám
       - tôi cần bạn hỗ trợ tôi đặt lịch khám    
       - hỗ trợ tôi đặt lịch khám với
+      - giúp tôi đặt lịch khám với
+      - tôi muốn đặt lịch khám với bạn
+      - tôi cần đặt lịch khám với bạn
+      - ê giúp tao đặt lịch khám đi mày
+      - ê hỗ trợ tao đặt lịch khám đi mày
+      - tao muốn đặt lịch khám
+      - tao cần đặt lịch khám
+      - bây giờ tôi muốn đặt lịch
+      - mày giúp tao đặt lịch khám đi
+      - mày hỗ trợ tao đặt lịch khám đi
+      - mày đặt lịch khám giúp tao được không
+      - bạn giúp tôi đặt lịch khám đi
+      - bạn hỗ trợ tôi đặt lịch khám đi
+      - bạn đặt lịch khám giúp tôi được không
+      - tôi muốn đặt lịch khám, bạn giúp tôi được không
+      - tôi cần đặt lịch khám, bạn giúp tôi được không
+      - tôi muốn bạn giúp tôi đặt lịch khám được không
+      - tôi cần bạn giúp tôi đặt lịch khám được không
+      - bạn hỗ trợ tôi đặt lịch khám được không
+      - bạn giúp tôi đặt lịch khám được không
+      - tôi muốn đặt lịch với bác sĩ [Nguyễn Văn A](doctor_name)
+      - tôi cần đặt lịch ở chuyên khoa [tim mạch](specialty)
+      - tôi muốn đặt lịch vào ngày [20/10/2025](date) lúc [9:00](time)
+      - tôi muốn đặt lịch khám ở chuyên khoa [nội khoa](specialty) với bác sĩ [Lê Thị B](doctor_name) vào ngày [15-11-2025](date) lúc [14:00](time)
 
   - intent: provide_decription
     examples: |
@@ -200,6 +232,11 @@ nlu:
       - khám [da liễu](specialty) đặt lịch đi
       - [khoa nội](specialty) cho lịch khám
       - [khoa ngoại](specialty)
+      - tôi muốn đặt lịch ở [nhi khoa](specialty)
+      - đặt lịch ở [thần kinh](specialty)
+      - tôi chọn [sản khoa](specialty)
+      - chọn cho tôi [khoa tiêu hóa](specialty)
+      - [khoa hô hấp](specialty) đi
 
   - intent: choose_doctor_name
     examples: |
@@ -215,6 +252,10 @@ nlu:
       - Tôi chọn bác sĩ [Lê Văn K](doctor_name)
       - Tôi muốn khám bác sĩ [Ngô Thị L](doctor_name)
       - Tôi chọn bác sĩ [Phan M](doctor_name)
+      - [Nguyễn Văn A](doctor_name)
+      - bác sĩ [Thị B](doctor_name)
+      - giúp tôi chọn bác sĩ [Lê](doctor_name)
+      - tôi muốn bác sĩ [D](doctor_name)
 
   - intent: provide_time
     examples: |
@@ -230,6 +271,14 @@ nlu:
       - vào lúc [20:00](time)
       - vào lúc [11h30](time)
       - vào lúc [15:45](time)
+      - tôi rảnh [12:00](time) sáng
+      - tôi muốn lịch lúc [14:00](time)
+      - tôi có thể đến vào lúc [16:00](time)
+      - tôi muốn đặt lịch vào lúc [9 giờ sáng](time)
+      - [10:30](time) đi
+      - [15:15](time) được không
+      - tôi muốn lịch vào lúc [7:00](time)
+      - tôi rảnh vào lúc [18:00](time)
 
   - intent: provide_date
     examples: |
@@ -307,6 +356,23 @@ nlu:
 
   - intent: list_doctors_by_specialty
     examples: |
+      - ở trong [tim mạch](specialty) có những ai vậy
+      - cho tôi xem danh sách bác sĩ trong chuyên khoa [da liễu](specialty)
+      - bác sĩ nào ở chuyên khoa [nội tổng quát](specialty)
+      - liệt kê bác sĩ trong chuyên khoa [nhi](specialty)
+      - có bao nhiêu bác sĩ ở chuyên khoa [thần kinh](specialty)
+      - cho tôi xem bác sĩ trong chuyên khoa [nội khoa](specialty)
+      - có ai trong chuyên khoa [ngoại khoa](specialty) vậy
+      - có ai ở trong chuyên khoa [phụ sản](specialty)
+      - trong chuyên khoa [răng hàm mặt](specialty) có ai he
+      - trong [nội khoa](specialty) có ai ở trong đó vậy
+      - ai phục vụ ở chuyên khoa [tim mạch](specialty)
+      - rồi trong [da liễu](specialty) có ai khám được cho tôi không vậy
+      - tôi tò mò trong [nội tổng quát](specialty) có những bác sĩ nào
+      - cho tôi biết ở trong [nhi](specialty) có những ai đi
+      - tôi cần biết có bao nhiêu bác sĩ ở trong [thần kinh](specialty)
+      - tôi cần biết có những bác sĩ nào ở trong [nội khoa](specialty)
+      - tôi muốn xem bác sĩ ở trong [ngoại khoa](specialty)
       - các bác sĩ [nội khoa](specialty)
       - bác sĩ nào trong chuyên khoa [ngoại khoa](specialty)
       - danh sách bác sĩ [nhi khoa](specialty)
@@ -332,6 +398,23 @@ nlu:
   # ============ Intent: cancel_appointment ============
   - intent: cancel_appointment
     examples: |
+      - hủy lịch khám giúp tôi
+      - tôi muốn hủy lịch khám ngày [20/10/2025](date)
+      - hủy lịch khám vào ngày [15-11-2025](date)
+      - hủy lịch ngày [30-09-2025](date)
+      - tôi cần hủy lịch đã đặt
+      - tôi muốn bạn hủy lịch khám giúp tôi
+      - hủy lịch ngày [5/11/2025](date) giúp tôi
+      - bây giờ tôi muốn hủy lịch, bạn giúp tôi được không
+      - tôi muốn hủy lịch khám, bạn giúp tôi được không
+      - tôi cần hủy lịch khám, bạn giúp tôi được không
+      - bây giờ tôi muốn hủy lịch khám ngày [25/12/2025](date), bạn giúp tôi được không
+      - giúp tôi hủy lịch ngày [01-01-2026](date) đi bạn
+      - hỗ trợ tôi hủy lịch ngày [10-10-2025](date) đi bạn
+      - ngày [31/12/2025](date) tôi không tới được, hủy giúp tôi
+      - tôi bận không đến được vào ngày [24/12/2025](date), hủy lịch giúp tôi
+      - tôi muốn hủy lịch vào ngày [07-11-2025](date)
+      - tôi cần hủy lịch vào ngày [14-11-2025](date)
       - tôi muốn hủy lịch khám
       - hủy lịch hẹn
       - hủy cuộc hẹn
@@ -347,21 +430,6 @@ nlu:
       - không đi khám được nữa
       - hủy lịch đặt trước
       - tôi bận không đến được
-
-  # ============ Intent: provide_cancel_date ============
-  # - intent: provide_cancel_date
-  #   examples: |
-  #     - [21/10/2025](date)
-  #     - [22/10/2025](date)
-  #     - [23/10/2025](date)
-  #     - ngày [20/10/2025](date)
-  #     - lịch ngày [25/10/2025](date)
-  #     - hủy lịch ngày [21/10/2025](date)
-  #     - tôi muốn hủy lịch ngày [22/10/2025](date)
-  #     - [19/10/2025](date)
-  #     - ngày [18/10/2025](date) ạ
-  #     - vào ngày [24/10/2025](date)
-  #     - lịch hẹn ngày [26/10/2025](date)
 
   # ============ Intent: select_appointment ============
   - intent: select_appointment
@@ -385,6 +453,15 @@ nlu:
   # ==================================== Tìm toa thuốc =============================================================
   - intent: search_prescription
     examples: |
+      - tìm giúp tôi toa thuốc ngày [25/10/2024](date)
+      - ê tìm giúp tao cái toa thuốc [25/10/2025](date)
+      - toa thuốc ngày [25/10/2025](date) của tao là gì ta?
+      - toa thuốc ngày [25/10/2025](date) có gì
+      - tôi muốn tìm toa thuốc ngày [20/1/2025](date)
+      - tôi muốn coi toa thuốc
+      - tao muốn coi toa thuốc, mày giúp tao đi
+      - bây giờ tao muốn xem toa thuốc ngày [10/7/2025](date)
+      - bây giờ tôi muốn xem toa thuốc, bạn giúp tôi đi
       - tôi muốn tìm toa thuốc
       - cho tôi xem toa thuốc của tôi
       - tìm giúp tôi toa thuốc đã kê
@@ -418,6 +495,12 @@ nlu:
       - xem đơn thuốc gần nhất
       - cho tôi biết toa thuốc gần đây nhất tôi được kê
       - đơn thuốc gần đây nhất của tôi
+      - cho tao coi cái mới nhất đi
+      - cái mới nhất
+      - cái mới đi
+      - tao muốn coi cái mới
+      - tôi muốn coi cái mới nhất
+      - cái mới ơi là mới
 
   - intent: affirm
     examples: |
@@ -439,6 +522,22 @@ nlu:
       - bậy bạ
       - tầm bậy
       - bỏ
+      - hủy
+      - im cho tao
+      - nghỉ cho tao
+      - thôi
+      - thôi tôi không muốn nữa
+      - tôi muốn dừng lại
+      - nghỉ
+      - bỏ qua đi mày
+      - thôi bỏ
+      - thôi nghỉ
+      - bỏ đi tao chán quá
+      - bỏ bỏ
+      - dừng lại
+      - tôi muốn dừng lại
+      - tôi không muốn tiếp tục nữa
+      - tôi muốn không muốn đặt lịch nữa
 
   - intent: out_of_scope
     examples: |
@@ -611,3 +710,105 @@ nlu:
       - lần trước ai khám
       - bác sĩ nào đã khám cho tôi
       - tôi muốn biết bác sĩ đã khám tôi
+      - ai đã khám cho tôi vậy
+      - trước giờ ai khám cho tôi
+      - ê cho tao hỏi cái đi, trước giờ ai khám cho tao vậy
+      - ê cho tôi hỏi cái đi, trước giờ ai khám cho tôi vậy
+      - ơ hỏi cái, ai đã từng khám cho tôi vậy
+      - hồi đó giờ ai khám cho tôi
+      - tôi muốn tìm những bác sĩ đã khám cho tôi
+      - tôi muốn biết những bác sĩ đã khám cho tôi
+      - ai đã khám cho tôi
+      - từ trước đến nay, ai đã khám cho tôi
+  #======================= Từ đồng nghĩa =================================
+  - synonym: "Nội khoa"
+    examples: |
+      - khoa nội
+      - khám nội
+      - khám tổng quát
+      - nội tổng hợp
+      - khám nội tổng quát
+
+  - synonym: "Ngoại khoa"
+    examples: |
+      - khoa ngoại
+      - khám ngoại
+      - ngoại tổng quát
+      - ngoại tổng hợp
+
+  - synonym: "Răng Hàm Mặt"
+    examples: |
+      - nha khoa
+      - khoa răng hàm mặt
+      - khám răng
+      - làm răng
+      - khoa nha
+      - phòng nha
+
+  - synonym: "Sản phụ khoa"
+    examples: |
+      - phụ sản
+      - khoa sản
+      - khám sản
+      - khám phụ khoa
+      - khám thai
+      - sản khoa
+
+  - synonym: "Nhi khoa"
+    examples: |
+      - khoa nhi
+      - khám nhi
+      - khám cho bé
+      - khám trẻ em
+      - khoa trẻ em
+      - phòng khám nhi
+
+  - synonym: "Thần kinh"
+    examples: |
+      - khoa thần kinh
+      - khám thần kinh
+      - nội thần kinh
+
+  - lookup: specialty # <-- Đổi tên này thành tên entity của bạn
+    examples: |
+      - Nội khoa
+      - khoa nội
+      - khám nội
+      - khám tổng quát
+      - nội tổng hợp
+      - khám nội tổng quát
+
+      - Ngoại khoa
+      - khoa ngoại
+      - khám ngoại
+      - ngoại tổng quát
+      - ngoại tổng hợp
+
+      - Răng Hàm Mặt
+      - nha khoa
+      - khoa răng hàm mặt
+      - khám răng
+      - làm răng
+      - khoa nha
+      - phòng nha
+
+      - Sản phụ khoa
+      - phụ sản
+      - khoa sản
+      - khám sản
+      - khám phụ khoa
+      - khám thai
+      - sản khoa
+
+      - Nhi khoa
+      - khoa nhi
+      - khám nhi
+      - khám cho bé
+      - khám trẻ em
+      - khoa trẻ em
+      - phòng khám nhi
+
+      - Thần kinh
+      - khoa thần kinh
+      - khám thần kinh
+      - nội thần kinh

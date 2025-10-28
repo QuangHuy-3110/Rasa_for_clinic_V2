@@ -428,8 +428,8 @@ responses:
       metadata:
         html: true
 
-  # utter_ask_prescription_date:
-  #   - text: "Vui lòng nhập ngày khám bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).\nVí dụ: 15/10/2025"
+  utter_ask_prescription_date:
+    - text: "Vui lòng nhập ngày khám bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).\nVí dụ: 15/10/2025"
 
   utter_ask_symptoms:
     - text: "Bạn đang gặp triệu chứng gì? Hãy mô tả chi tiết (có thể liệt kê nhiều, ví dụ: 'đau đầu, sốt')."
@@ -461,8 +461,8 @@ responses:
   utter_ask_date:
     - text: "Bạn muốn đặt lịch vào ngày nào? Vui lòng cho biết ngày cụ thể."
 
-  # utter_ask_appointment_date:
-  #   - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY)."
+  utter_ask_appointment_date:
+    - text: "Vui lòng nhập ngày bạn muốn hủy lịch hẹn (định dạng DD/MM/YYYY)."
 
   utter_confirm:
     - text: |

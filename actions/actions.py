@@ -322,7 +322,7 @@ class ValidateCancelAppointmentForm(FormValidationAction):
         
         # === VALIDATION BÌNH THƯỜNG ===
         if not slot_value:
-            dispatcher.utter_message(text="Vui lòng cung cấp ngày bạn muốn hủy lịch hẹn (DD/MM/YYYY).")
+            # dispatcher.utter_message(text="Vui lòng cung cấp ngày bạn muốn hủy lịch hẹn (DD/MM/YYYY).")
             return {"appointment_date": None}
 
         date_input = str(slot_value).strip()
@@ -398,7 +398,7 @@ class ValidateCancelAppointmentForm(FormValidationAction):
             return interruption_result
         
         if not slot_value:
-            dispatcher.utter_message(text="Vui lòng chọn một lịch hẹn để hủy.")
+            # dispatcher.utter_message(text="Vui lòng chọn một lịch hẹn để hủy.")
             return {"selected_appointment_id": None}
         
         # Validate appointment_id tồn tại trong DB
@@ -846,24 +846,61 @@ class ActionRecommendDoctor(Action):
             return []
 
         symptom_to_specialty = {
+            # Thần kinh
             "đau đầu": "Thần kinh", "chóng mặt": "Thần kinh", "mất ngủ": "Thần kinh", "co giật": "Thần kinh",
             "tê bì tay chân": "Thần kinh", "rối loạn trí nhớ": "Thần kinh", "đau nửa đầu": "Thần kinh",
-            "run tay": "Thần kinh", "mất thăng bằng": "Thần kinh",
+            "run tay": "Thần kinh", "mất thăng bằng": "Thần kinh", "yếu liệt": "Thần kinh", "méo miệng": "Thần kinh",
+            "nói khó": "Thần kinh", "sa sút trí tuệ": "Thần kinh", "đau dây thần kinh tọa": "Thần kinh",
+            "nhìn mờ": "Thần kinh", # (có thể liên quan Mắt, nhưng cũng là dấu hiệu thần kinh)
+            "nhìn đôi": "Thần kinh", "mất ý thức": "Thần kinh", "lú lẫn": "Thần kinh", "co giật mi mắt": "Thần kinh",
+            "đau vai gáy lan xuống tay": "Thần kinh", "rối loạn tiền đình": "Thần kinh", "liệt mặt": "Thần kinh",
+            "dáng đi bất thường": "Thần kinh", "ngủ rũ": "Thần kinh", "mộng du": "Thần kinh",
+
+            # Nội khoa (Khoa rất rộng, bao gồm nhiều chuyên khoa nhỏ)
             "sốt": "Nội khoa", "mệt mỏi": "Nội khoa", "ho": "Nội khoa", "khó thở": "Nội khoa",
             "đau ngực": "Nội khoa", "đau khớp": "Nội khoa", "tiêu chảy": "Nội khoa", "buồn nôn": "Nội khoa",
-            "đau bụng": "Nội khoa", "chán ăn": "Nội khoa",
-            "chấn thương": "Ngoại khoa", "gãy xương": "Ngoại khoa", "vết thương hở": "Ngoại khoa",
-            "đau lưng": "Ngoại khoa", "đau vai gáy": "Ngoại khoa", "u bướu ngoài da": "Ngoại khoa",
-            "sưng tấy": "Ngoại khoa", "đau sau phẫu thuật": "Ngoại khoa",
+            "đau bụng": "Nội khoa", "chán ăn": "Nội khoa", "sụt cân không rõ nguyên nhân": "Nội khoa",
+            "vàng da": "Nội khoa", "phù nề": "Nội khoa", "táo bón": "Nội khoa", "ợ nóng": "Nội khoa",
+            "cao huyết áp": "Nội khoa", "đánh trống ngực": "Nội khoa", "ho ra máu": "Nội khoa",
+            "khó tiêu": "Nội khoa", "đầy hơi": "Nội khoa", "tiểu nhiều": "Nội khoa", "khát nước nhiều": "Nội khoa",
+            "sưng hạch": "Nội khoa", "da xanh xao": "Nội khoa", "dễ bầm tím": "Nội khoa",
+
+            # Ngoại khoa
+            "chấn thương": "Ngoại khoa", "gãy xương": "Nội khoa", # (Nội khoa để điều trị ban đầu, nhưng Ngoại Chấn thương chỉnh hình sẽ xử lý chính) -> Sửa thành "Ngoại khoa" cho nhất quán
+            "gãy xương": "Ngoại khoa", "vết thương hở": "Ngoại khoa",
+            "đau lưng": "Ngoại khoa", # (Có thể do Thần kinh, Cơ xương khớp, hoặc Ngoại)
+            "đau vai gáy": "Ngoại khoa", # (Như trên)
+            "u bướu ngoài da": "Ngoại khoa", "sưng tấy": "Ngoại khoa", "đau sau phẫu thuật": "Ngoại khoa",
+            "bỏng": "Ngoại khoa", "áp xe": "Ngoại khoa", "đau bụng cấp": "Ngoại khoa",
+            "thoát vị": "Ngoại khoa", "trĩ": "Ngoại khoa", "vết thương nhiễm trùng": "Ngoại khoa",
+            "sỏi mật": "Ngoại khoa", "tắc ruột": "Ngoại khoa", "viêm ruột thừa": "Ngoại khoa",
+            "u vú": "Ngoại khoa", "bướu cổ (cần phẫu thuật)": "Ngoại khoa",
+
+            # Nhi khoa
             "sốt ở trẻ em": "Nhi khoa", "ho ở trẻ em": "Nhi khoa", "nôn trớ": "Nhi khoa",
             "khò khè": "Nhi khoa", "biếng ăn": "Nhi khoa", "tiêu chảy ở trẻ em": "Nhi khoa",
-            "phát ban": "Nhi khoa", "sổ mũi": "Nhi khoa",
+            "phát ban": "Nhi khoa", "sổ mũi": "Nhi khoa", "chậm lớn": "Nhi khoa",
+            "vàng da sơ sinh": "Nhi khoa", "co giật do sốt": "Nhi khoa", "quấy khóc kéo dài": "Nhi khoa",
+            "táo bón ở trẻ": "Nhi khoa", "thở nhanh": "Nhi khoa", "bỏ bú": "Nhi khoa",
+            "chậm nói": "Nhi khoa", "tự kỷ": "Nhi khoa", # (Thường cần Tâm lý/Tâm thần Nhi, nhưng Nhi khoa là nơi khám sàng lọc đầu tiên)
+            "dị ứng sữa": "Nhi khoa", "rốn lồi": "Nhi khoa",
+
+            # Sản khoa (Thường là Sản Phụ khoa)
             "trễ kinh": "Sản khoa", "đau bụng dưới": "Sản khoa", "ra khí hư bất thường": "Sản khoa",
             "chảy máu âm đạo": "Sản khoa", "ốm nghén": "Sản khoa", "đau lưng khi mang thai": "Sản khoa",
-            "rối loạn kinh nguyệt": "Sản khoa", "nghi ngờ mang thai": "Sản khoa",
+            "rối loạn kinh nguyệt": "Sản khoa", "nghi ngờ mang thai": "Sản khoa", "ngứa vùng kín": "Sản khoa",
+            "đau rát khi quan hệ": "Sản khoa", "khám thai định kỳ": "Sản khoa", "hiếm muộn": "Sản khoa",
+            "u xơ tử cung": "Sản khoa", "u nang buồng trứng": "Sản khoa", "đau bụng kinh dữ dội": "Sản khoa",
+            "ra máu sau mãn kinh": "Sản khoa", "tư vấn tránh thai": "Sản khoa", "khám phụ khoa": "Sản khoa",
+
+            # Răng Hàm Mặt
             "đau răng": "Răng Hàm Mặt", "sưng nướu": "Răng Hàm Mặt", "hôi miệng": "Răng Hàm Mặt",
             "chảy máu chân răng": "Răng Hàm Mặt", "viêm lợi": "Răng Hàm Mặt", "sâu răng": "Răng Hàm Mặt",
-            "nhức răng": "Răng Hàm Mặt", "hàm lệch": "Răng Hàm Mặt",
+            "nhức răng": "Răng Hàm Mặt", "hàm lệch": "Răng Hàm Mặt", "răng ê buốt": "Răng Hàm Mặt",
+            "mọc răng khôn": "Răng Hàm Mặt", "viêm tủy răng": "Răng Hàm Mặt", "loét miệng": "Răng Hàm Mặt",
+            "gãy răng": "Răng Hàm Mặt", "răng mọc lệch": "Răng Hàm Mặt", "cần nhổ răng": "Răng Hàm Mặt",
+            "niềng răng": "Răng Hàm Mặt", "làm răng sứ": "Răng Hàm Mặt", "đau khớp thái dương hàm": "Răng Hàm Mặt",
+            "vôi răng": "Răng Hàm Mặt", "tụt nướu": "Răng Hàm Mặt",
         }
 
         specialties = set()
@@ -2077,7 +2114,7 @@ class ValidateSearchPrescriptionForm(FormValidationAction):
         
         # === VALIDATION BÌNH THƯỜNG ===
         if not slot_value:
-            dispatcher.utter_message(text="Vui lòng cung cấp ngày khám bạn muốn tra cứu toa thuốc (DD/MM/YYYY).")
+            # dispatcher.utter_message(text="Vui lòng cung cấp ngày khám bạn muốn tra cứu toa thuốc (DD/MM/YYYY).")
             return {"prescription_date": None}
 
         date_input = str(slot_value).strip()
@@ -2087,7 +2124,7 @@ class ValidateSearchPrescriptionForm(FormValidationAction):
             parsed_date = datetime.strptime(date_input, '%d/%m/%Y').date()
         except ValueError:
             dispatcher.utter_message(
-                text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.\nVí dụ: 15/10/2025"
+                text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.\n"
             )
             return {"prescription_date": None}
 
