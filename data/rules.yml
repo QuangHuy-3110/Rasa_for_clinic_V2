@@ -345,6 +345,7 @@ rules:
       - intent: deny
       - action: action_handle_deny
       - active_loop: null
+      - action: utter_ask_intent
       - action: action_listen
 
   # ===================== Bác sĩ nào đã khám tôi (interruption) ============================
@@ -353,6 +354,20 @@ rules:
       - intent: ask_who_examined_me
       - action: action_show_examining_doctor_in_form
 
+  - rule: List all doctors (outside form)
+    steps:
+      - intent: list_all_doctors
+      - action: action_list_all_doctors
+
+  - rule: Show doctor schedule (outside form)
+    steps:
+      - intent: ask_doctor_schedule
+      - action: action_show_doctor_schedule
+
+  - rule: Ask ask price
+    steps:
+      - intent: ask_price
+      - action: utter_ask_price
   # ===================== Misc ============================
   - rule: greet
     steps:

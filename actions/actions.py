@@ -13,7 +13,6 @@ from rasa_sdk.types import DomainDict
 from datetime import datetime, timedelta
 import google.generativeai as genai
 
-
 # Load file .env
 load_dotenv()
 
@@ -43,6 +42,233 @@ WRONG_INPUT_KEYWORDS = {
 MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
 
 # === THÊM MỚI ACTION Ở CUỐI FILE HOẶC GẦN CÁC ACTION TRA CỨU KHÁC ===
+class ActionShowDoctorSchedule(Action):
+    """
+    Action tra cứu và hiển thị lịch làm việc TUẦN HIỆN TẠI của một bác sĩ.
+    """
+    def name(self) -> Text:
+        return "action_show_doctor_schedule"
+
+    def _get_vietnamese_day_name(self, weekday_index):
+        """Helper để chuyển 0-6 sang Thứ 2 - Chủ Nhật"""
+        days_vn = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật"]
+        return days_vn[weekday_index]
+
+    def _format_time(self, time_obj):
+        """Helper để xử lý time_obj (có thể là timedelta)"""
+        if isinstance(time_obj, timedelta):
+            return (datetime.min + time_obj).time().strftime('%H:%M')
+        elif isinstance(time_obj, datetime.time):
+            return time_obj.strftime('%H:%M')
+        return str(time_obj)
+
+    def run(self, dispatcher, tracker, domain):
+        # 1. Lấy tên bác sĩ từ entity
+        entities = tracker.latest_message.get('entities', [])
+        doctor_name_input = next((e['value'] for e in entities if e['entity'] == 'doctor_name'), None)
+        
+        if not doctor_name_input:
+            dispatcher.utter_message(text="Bạn muốn xem lịch làm việc của bác sĩ nào? Vui lòng nhập tên.")
+            return []
+
+        print(f"[DEBUG] Running ActionShowDoctorSchedule for: {doctor_name_input}")
+
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            # 2. Xác thực tên bác sĩ (tránh trùng lặp)
+            query_find_bs = "SELECT maBS, tenBS FROM bacsi WHERE tenBS LIKE %s"
+            cursor.execute(query_find_bs, (f"%{doctor_name_input}%",))
+            doctors_found = cursor.fetchall()
+            
+            unique_names = set(doc['tenBS'] for doc in doctors_found)
+            
+            if not doctors_found:
+                dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào có tên '{doctor_name_input}'.")
+                cursor.close()
+                conn.close()
+                return []
+            
+            if len(unique_names) > 1:
+                dispatcher.utter_message(
+                    text=f"Tên '{doctor_name_input}' không rõ ràng (tìm thấy: {', '.join(unique_names)}). Vui lòng nhập họ tên đầy đủ."
+                )
+                cursor.close()
+                conn.close()
+                return []
+            
+            # Đã tìm thấy 1 bác sĩ duy nhất
+            doctor = doctors_found[0]
+            maBS = doctor['maBS']
+            tenBS = doctor['tenBS']
+
+            # 3. Tính toán tuần hiện tại (Thứ 2 -> Chủ Nhật)
+            today = datetime.now().date()
+            start_of_week = today - timedelta(days=today.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+
+            # 4. Query lịch làm việc trong tuần
+            query_schedule = """
+            SELECT ngaythangnam, giobatdau, gioketthuc, trangthai
+            FROM thoigiankham
+            WHERE maBS = %s 
+              AND DATE(ngaythangnam) BETWEEN %s AND %s
+            ORDER BY ngaythangnam, giobatdau
+            """
+            cursor.execute(query_schedule, (maBS, start_of_week, end_of_week))
+            schedule_rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            if not schedule_rows:
+                dispatcher.utter_message(
+                    text=f"Bác sĩ **{tenBS}** không có lịch làm việc nào được đăng ký trong tuần này (từ {start_of_week.strftime('%d/%m')} đến {end_of_week.strftime('%d/%m')})."
+                )
+                return []
+
+            # 5. Xử lý và nhóm dữ liệu theo ngày
+            schedule_by_date = {}
+            for row in schedule_rows:
+                date_obj = row['ngaythangnam']
+                if date_obj not in schedule_by_date:
+                    schedule_by_date[date_obj] = []
+                schedule_by_date[date_obj].append(row)
+
+            # 6. Tạo bảng HTML
+            html_table = f"""
+            <style>
+                .schedule-table {{
+                    width: 100%; max-width: 450px; border-collapse: collapse;
+                    font-family: Arial, sans-serif; background: white;
+                    border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }}
+                .schedule-table th, .schedule-table td {{
+                    padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee;
+                }}
+                .schedule-table th {{
+                    background-color: #f8faff; color: #007bff; font-size: 14px;
+                }}
+                .schedule-table .date-cell {{
+                    font-weight: bold; color: #333; font-size: 14px;
+                }}
+                .schedule-table .shift-cell div {{
+                    margin-bottom: 4px;
+                }}
+                .status-work {{ color: green; font-weight: bold; }}
+                .status-off {{ color: red; font-weight: bold; }}
+            </style>
+            <div style="font-family: Arial, sans-serif; font-size: 15px; margin-bottom: 8px;">
+                📅 <strong>Lịch làm việc tuần này của Bác sĩ {tenBS}</strong><br>
+                (Từ {start_of_week.strftime('%d/%m')} đến {end_of_week.strftime('%d/%m')})
+            </div>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Ngày</th>
+                        <th>Ca làm việc</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            
+            # Điền dữ liệu vào bảng
+            for date_obj, shifts in sorted(schedule_by_date.items()):
+                day_name_vn = self._get_vietnamese_day_name(date_obj.weekday())
+                date_str = date_obj.strftime('%d/%m')
+                
+                shifts_html = ""
+                for shift in shifts:
+                    start_time = self._format_time(shift['giobatdau'])
+                    end_time = self._format_time(shift['gioketthuc'])
+                    status = shift['trangthai']
+                    
+                    status_class = "status-work" if status.lower() != 'nghỉ' else "status-off"
+                    
+                    shifts_html += f"<div>{start_time} - {end_time} (<span class='{status_class}'>{status}</span>)</div>"
+                
+                html_table += f"""
+                    <tr>
+                        <td class="date-cell">{day_name_vn}<br><span style="font-size: 12px; font-weight: normal;">{date_str}</span></td>
+                        <td class="shift-cell">{shifts_html}</td>
+                    </tr>
+                """
+            
+            html_table += "</tbody></table>"
+            dispatcher.utter_message(text=html_table, html=True)
+
+        except Error as e:
+            print(f"[ERROR] DB Error in ActionShowDoctorSchedule: {e}")
+            dispatcher.utter_message(text=f"Lỗi khi tra cứu cơ sở dữ liệu: {e}")
+        
+        return []
+
+
+class ActionListAllDoctors(Action):
+    """
+    Action tra cứu và hiển thị TẤT CẢ bác sĩ trong hệ thống.
+    Có thể được gọi từ interruption.
+    """
+    def name(self) -> Text:
+        return "action_list_all_doctors"
+
+    def run(self, dispatcher, tracker, domain):
+        print(f"[DEBUG] Running ActionListAllDoctors")
+        
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            # Query để lấy TẤT CẢ bác sĩ và GOM NHÓM chuyên khoa
+            query = """
+            SELECT 
+                bs.tenBS,
+                GROUP_CONCAT(DISTINCT ck.tenCK SEPARATOR ', ') as chuyenkhoa
+            FROM bacsi bs
+            LEFT JOIN chuyenmon cm ON bs.maBS = cm.maBS
+            LEFT JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+            GROUP BY bs.maBS, bs.tenBS
+            ORDER BY bs.tenBS
+            """
+            cursor.execute(query)
+            doctors = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if doctors:
+                html_list = f"""
+                <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #f8faff; border-radius: 10px; padding: 10px; border: 1px solid #cce0ff;">
+                    <div style="color: #007bff; font-weight: bold; margin-bottom: 8px;">
+                        📋 Danh sách bác sĩ trong hệ thống (Tổng: {len(doctors)}):
+                    </div>
+                """
+                
+                for doc in doctors:
+                    specialties = doc['chuyenkhoa'] if doc['chuyenkhoa'] else 'Chưa có'
+                    html_list += f"""
+                    <div style="background: #ffffff; border-left: 3px solid #007bff; border-radius: 6px; padding: 6px 10px; margin-bottom: 6px;">
+                        <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
+                        <div><strong>Chuyên khoa:</strong> {specialties}</div>
+                    </div>
+                    """
+                
+                html_list += """
+                    <div style="margin-top: 6px; font-style: italic;">👉 Vui lòng tiếp tục yêu cầu của bạn...</div>
+                </div>
+                """
+                dispatcher.utter_message(text=html_list, html=True)
+            else:
+                dispatcher.utter_message(
+                    text="Không tìm thấy bác sĩ nào trong hệ thống."
+                )
+                
+        except Error as e:
+            print(f"[ERROR] DB Error in ActionListAllDoctors: {e}")
+            dispatcher.utter_message(text=f"Lỗi khi tra cứu cơ sở dữ liệu: {e}")
+        
+        # Action này chỉ hiển thị thông tin, không set slot
+        # Form sẽ tự động hỏi lại slot đang yêu cầu
+        return []
+
 
 class ActionShowExaminingDoctorInForm(Action):
     """
@@ -303,6 +529,16 @@ class ValidateCancelAppointmentForm(FormValidationAction):
             info_action.run(dispatcher, tracker, {})
             # Trả về slot dummy để form tiếp tục
             return {"just_asked_examining_doctor": False}
+        
+        if latest_intent == "list_all_doctors":
+            list_action = ActionListAllDoctors()
+            list_action.run(dispatcher, tracker, {}) # Dùng {} cho domain
+            return {"just_listed_all_doctors_dummy": False} # Trả về slot dummy để form tiếp tục
+        
+        if latest_intent == "ask_doctor_schedule":
+            schedule_action = ActionShowDoctorSchedule()
+            schedule_action.run(dispatcher, tracker, {})
+            return {"just_asked_doctor_schedule_dummy": False}
         
         return {}
 
@@ -1092,6 +1328,16 @@ class ValidateBookAppointmentForm(FormValidationAction):
             info_action.run(dispatcher, tracker, {})
             # Trả về slot dummy để form tiếp tục
             return {"just_asked_examining_doctor": False}
+
+        if latest_intent == "list_all_doctors":
+            list_action = ActionListAllDoctors()
+            list_action.run(dispatcher, tracker, {}) # Dùng {} cho domain
+            return {"just_listed_all_doctors_dummy": False} # Trả về slot dummy để form tiếp tục
+        
+        if latest_intent == "ask_doctor_schedule":
+            schedule_action = ActionShowDoctorSchedule()
+            schedule_action.run(dispatcher, tracker, {})
+            return {"just_asked_doctor_schedule_dummy": False}
         
         return {}
 
@@ -1157,10 +1403,12 @@ class ValidateBookAppointmentForm(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
         """
-        Validate bác sĩ - PHẢI THUỘC CHUYÊN KHOA ĐÃ CHỌN
+        Validate bác sĩ.
+        - NẾU CÓ CHUYÊN KHOA: Validate bác sĩ phải thuộc chuyên khoa đó (logic cũ).
+        - NẾU CHƯA CÓ CHUYÊN KHOA: Tự động điền chuyên khoa nếu bác sĩ là duy nhất (logic mới).
         """
         
-        # Check interruption
+        # Check interruption (Giữ nguyên)
         interruption_result = self._handle_form_interruption(dispatcher, tracker)
         if interruption_result:
             return interruption_result
@@ -1174,91 +1422,174 @@ class ValidateBookAppointmentForm(FormValidationAction):
             dispatcher.utter_message(text="Đó có vẻ là thông tin khác. Vui lòng nhập tên bác sĩ.")
             return {"doctor_name": None}
 
-        # LẤY CHUYÊN KHOA ĐÃ CHỌN
+        # LẤY CHUYÊN KHOA ĐÃ CHỌN (có thể là None)
         specialty = tracker.get_slot("specialty")
-        if not specialty:
-            dispatcher.utter_message(text="Lỗi: Chưa có thông tin chuyên khoa. Vui lòng chọn lại từ đầu.")
-            return {"doctor_name": None}
-
-        # KIỂM TRA BÁC SĨ PHẢI THUỘC CHUYÊN KHOA ĐÃ CHỌN
+        
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
-            
-            # Query chỉ lấy bác sĩ trong chuyên khoa đã chọn
-            query = """
-            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
-            FROM bacsi bs 
-            JOIN chuyenmon cm ON bs.maBS = cm.maBS
-            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
-            WHERE ck.tenCK = %s AND LOWER(bs.tenBS) LIKE %s
-            """
-            cursor.execute(query, (specialty, f"%{doctor_input.lower()}%"))
-            matched = cursor.fetchall()
-            
-            if not matched:
-                # Không tìm thấy -> Hiển thị danh sách bác sĩ trong chuyên khoa
-                query_all = """
+
+            # =================================================================
+            # BRANCH 1: CHUYÊN KHOA ĐÃ ĐƯỢC SET (LOGIC CŨ)
+            # =================================================================
+            if specialty:
+                query = """
                 SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
                 FROM bacsi bs 
                 JOIN chuyenmon cm ON bs.maBS = cm.maBS
                 JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
-                WHERE ck.tenCK = %s
-                LIMIT 5
+                WHERE ck.tenCK = %s AND LOWER(bs.tenBS) LIKE %s
                 """
-                cursor.execute(query_all, (specialty,))
-                doctors_in_specialty = cursor.fetchall()
+                cursor.execute(query, (specialty, f"%{doctor_input.lower()}%"))
+                matched = cursor.fetchall()
+                
+                if not matched:
+                    # Logic cũ: Hiển thị danh sách bác sĩ trong chuyên khoa
+                    query_all = """
+                    SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS 
+                    FROM bacsi bs 
+                    JOIN chuyenmon cm ON bs.maBS = cm.maBS
+                    JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
+                    WHERE ck.tenCK = %s
+                    LIMIT 5
+                    """
+                    cursor.execute(query_all, (specialty,))
+                    doctors_in_specialty = cursor.fetchall()
+                    cursor.close()
+                    conn.close()
+                    
+                    not_found_html = f"""
+                    <div style="font-family: Arial, sans-serif; background: #fff3cd;
+                                border-left: 5px solid #ffc107; border-radius: 8px;
+                                padding: 12px 16px; margin-bottom: 10px;">
+                        <p style="color: #856404; font-weight: bold; margin: 0 0 6px 0;">
+                            ⚠️ Bác sĩ "<span style='color:#000;'>{doctor_input}</span>" không thuộc chuyên khoa <strong>{specialty}</strong>.
+                        </p>
+                        <p style="margin: 4px 0;">👉 Vui lòng chọn một bác sĩ trong danh sách sau:</p>
+                    </div>
+                    """
+                    dispatcher.utter_message(text=not_found_html, metadata={"html": True})
+
+                    for doc in doctors_in_specialty:
+                        suggestion_html = f"""
+                        <div style="background: #ffffff; border: 1px solid #dee2e6;
+                                    border-radius: 6px; padding: 8px 12px; margin: 6px 0;
+                                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <p style="margin: 0;"><strong>🩺 {doc['tenBS']}</strong></p>
+                            <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+                            <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
+                        </div>
+                        """
+                        dispatcher.utter_message(text=suggestion_html, metadata={"html": True})
+
+                    return {"doctor_name": None}
+                
+                # Tìm thấy bác sĩ hợp lệ (Logic cũ)
+                doc = matched[0]
                 cursor.close()
                 conn.close()
                 
-                not_found_html = f"""
-                <div style="font-family: Arial, sans-serif; background: #fff3cd;
-                            border-left: 5px solid #ffc107; border-radius: 8px;
-                            padding: 12px 16px; margin-bottom: 10px;">
-                    <p style="color: #856404; font-weight: bold; margin: 0 0 6px 0;">
-                        ⚠️ Bác sĩ "<span style='color:#000;'>{doctor_input}</span>" không thuộc chuyên khoa <strong>{specialty}</strong>.
-                    </p>
-                    <p style="margin: 4px 0;">👉 Vui lòng chọn một bác sĩ trong danh sách sau:</p>
+                confirm_html = f"""
+                <div style="font-family: Arial, sans-serif; background: #d1ecf1;
+                            border-left: 5px solid #0c5460; border-radius: 8px;
+                            padding: 12px 16px;">
+                    <p style="font-weight: bold; color: #0c5460; margin: 0 0 6px 0;">✅ Xác nhận bác sĩ:</p>
+                    <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
+                    <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+                    <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
                 </div>
                 """
-                dispatcher.utter_message(text=not_found_html, metadata={"html": True})
+                dispatcher.utter_message(text=confirm_html, metadata={"html": True})
 
-                for doc in doctors_in_specialty:
-                    suggestion_html = f"""
-                    <div style="background: #ffffff; border: 1px solid #dee2e6;
-                                border-radius: 6px; padding: 8px 12px; margin: 6px 0;
-                                box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <p style="margin: 0;"><strong>🩺 {doc['tenBS']}</strong></p>
-                        <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
+                return {"doctor_name": doc["tenBS"]}
+            
+            # =================================================================
+            # BRANCH 2: CHUYÊN KHOA CHƯA ĐƯỢC SET (LOGIC MỚI)
+            # =================================================================
+            else:
+                query_new = """
+                SELECT bs.tenBS, ck.tenCK, bs.maBS, bs.sdtBS 
+                FROM bacsi bs 
+                JOIN chuyenmon cm ON bs.maBS = cm.maBS
+                JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
+                WHERE LOWER(bs.tenBS) LIKE %s
+                """
+                cursor.execute(query_new, (f"%{doctor_input.lower()}%",))
+                doctors_found = cursor.fetchall()
+                cursor.close()
+                conn.close()
+
+                # Case 2a: Không tìm thấy bác sĩ
+                if not doctors_found:
+                    dispatcher.utter_message(text=f"Không tìm thấy bác sĩ nào có tên '{doctor_input}'. Vui lòng kiểm tra lại tên hoặc chọn chuyên khoa trước.")
+                    return {"doctor_name": None}
+
+                # Phân tích kết quả
+                unique_names = set(doc['tenBS'] for doc in doctors_found)
+                unique_specialties = set(doc['tenCK'] for doc in doctors_found)
+                found_name = list(unique_names)[0] # Lấy tên đầu tiên
+
+                # Case 2b-i: Tên không rõ ràng (match nhiều bác sĩ khác nhau)
+                if len(unique_names) > 1:
+                    dispatcher.utter_message(text=f"Tên '{doctor_input}' không rõ ràng (tìm thấy: {', '.join(unique_names)}). Vui lòng cung cấp chuyên khoa trước, hoặc nhập họ tên đầy đủ.")
+                    return {"doctor_name": None}
+
+                # Case 2b-ii: HAPPY PATH (1 tên, 1 chuyên khoa)
+                if len(unique_names) == 1 and len(unique_specialties) == 1:
+                    found_specialty = list(unique_specialties)[0]
+                    
+                    # Hiển thị xác nhận
+                    doc = doctors_found[0]
+                    confirm_html = f"""
+                    <div style="font-family: Arial, sans-serif; background: #d1ecf1;
+                                border-left: 5px solid #0c5460; border-radius: 8px;
+                                padding: 12px 16px;">
+                        <p style="font-weight: bold; color: #0c5460; margin: 0 0 6px 0;">✅ Xác nhận bác sĩ:</p>
+                        <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
+                        <p style="margin: 2px 0;">🏥 Tự động chọn chuyên khoa: <strong>{doc['tenCK']}</strong></p>
                         <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
                     </div>
                     """
-                    dispatcher.utter_message(text=suggestion_html, metadata={"html": True})
+                    dispatcher.utter_message(text=confirm_html, metadata={"html": True})
+                    
+                    # Set cả 2 slot -> Form sẽ bỏ qua hỏi chuyên khoa và bác sĩ
+                    return {"doctor_name": found_name, "specialty": found_specialty}
 
-                return {"doctor_name": None}
-            
-            # Tìm thấy bác sĩ hợp lệ
-            doc = matched[0]
-            cursor.close()
-            conn.close()
-            
-            confirm_html = f"""
-            <div style="font-family: Arial, sans-serif; background: #d1ecf1;
-                        border-left: 5px solid #0c5460; border-radius: 8px;
-                        padding: 12px 16px;">
-                <p style="font-weight: bold; color: #0c5460; margin: 0 0 6px 0;">✅ Xác nhận bác sĩ:</p>
-                <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
-                <p style="margin: 2px 0;">🏥 {doc['tenCK']}</p>
-                <p style="margin: 2px 0;">📞 {doc['sdtBS']}</p>
-            </div>
-            """
-            dispatcher.utter_message(text=confirm_html, metadata={"html": True})
+                # Case 2b-iii: 1 tên, nhiều chuyên khoa
+                if len(unique_names) == 1 and len(unique_specialties) > 1:
+                    
+                    # Hiển thị xác nhận bác sĩ, nhưng yêu cầu chuyên khoa
+                    doc = doctors_found[0]
+                    specialty_list_str = ", ".join(unique_specialties)
+                    
+                    confirm_html = f"""
+                    <div style="font-family: Arial, sans-serif; background: #d1ecf1;
+                                border-left: 5px solid #0c5460; border-radius: 8px;
+                                padding: 12px 16px; margin-bottom: 8px;">
+                        <p style="font-weight: bold; color: #0c5460; margin: 0 0 6px 0;">✅ Xác nhận bác sĩ:</p>
+                        <p style="margin: 2px 0;"><strong>👨‍⚕️ {doc['tenBS']}</strong></p>
+                    </div>
+                    <div style="font-family: Arial, sans-serif; background: #fff3cd;
+                                border-left: 5px solid #ffc107; border-radius: 8px;
+                                padding: 12px 16px;">
+                        <p style="color: #856404; font-weight: bold; margin: 0 0 6px 0;">
+                            ⚠️ Bác sĩ này làm việc ở nhiều chuyên khoa:
+                        </p>
+                        <p style="margin: 4px 0;"><i>{specialty_list_str}</i></p>
+                        <p style="margin: 8px 0 0 0;">👉 Vui lòng chọn chuyên khoa bạn muốn khám.</p>
+                    </div>
+                    """
+                    dispatcher.utter_message(text=confirm_html, metadata={"html": True})
+                    
+                    # Chỉ set doctor_name, specialty vẫn là None -> form sẽ hỏi specialty tiếp theo
+                    return {"doctor_name": found_name}
 
-            return {"doctor_name": doc["tenBS"]}
-            
         except Error as e:
             dispatcher.utter_message(text=f"Lỗi DB: {e}")
             return {"doctor_name": None}
+
+        # Fallback (không nên xảy ra)
+        return {"doctor_name": None}
 
     def validate_date(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
@@ -1879,64 +2210,6 @@ class ActionSearchSpecialty(Action):
         ]
 
 
-# class ActionSearchPrescription(Action):
-#     def name(self) -> Text:
-#         return "action_search_prescription"
-
-#     def run(
-#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-#     ) -> List[Dict]:
-#         prescription_date = tracker.get_slot("prescription_date")
-#         if not prescription_date:
-#             dispatcher.utter_message(
-#                 text="Vui lòng nhập ngày bạn muốn tra cứu toa thuốc (định dạng DD/MM/YYYY).",
-#                 buttons=[{"title": "Quay lại menu", "payload": "/greet"}]
-#             )
-#             return [SlotSet("prescription_date", None)]
-
-#         # Parse ngày
-#         try:
-#             parsed_date = datetime.strptime(prescription_date, '%d/%m/%Y').date()
-#         except ValueError:
-#             dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
-#             return [SlotSet("prescription_date", None)]
-
-#         # Query MySQL: Lấy toa thuốc của maBN trong ngày đó
-#         try:
-#             conn = mysql.connector.connect(**DB_CONFIG)
-#             cursor = conn.cursor(dictionary=True)
-#             query = """
-#             SELECT maTT, ngay_ke, noi_dung_toa
-#             FROM toa_thuoc
-#             WHERE maBN = %s AND DATE(ngay_ke) = %s
-#             ORDER BY ngay_ke
-#             """
-#             cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
-#             prescriptions = cursor.fetchall()
-#             cursor.close()
-#             conn.close()
-#         except Error as e:
-#             dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
-#             return [SlotSet("prescription_date", None)]
-
-#         if not prescriptions:
-#             dispatcher.utter_message(text=f"Không có toa thuốc nào trong ngày {prescription_date}.")
-#             buttons = [{"title": "Quay lại menu", "payload": "/greet"}]
-#             dispatcher.utter_message(text="Bạn có muốn tra cứu ngày khác không?", buttons=buttons)
-#             return [SlotSet("prescription_date", None)]
-
-#         # Hiển thị danh sách toa thuốc
-#         dispatcher.utter_message(text=f"Toa thuốc ngày {prescription_date}:")
-#         for rx in prescriptions:
-#             rx_text = f"📋 Toa thuốc ID {rx['maTT']} - Ngày kê: {rx['ngay_ke']}\nNội dung: {rx['noi_dung_toa']}"
-#             dispatcher.utter_message(text=rx_text)
-
-#         buttons = [{"title": "Tra cứu ngày khác", "payload": "/search_prescription"}, {"title": "Quay lại menu", "payload": "/greet"}]
-#         dispatcher.utter_message(text="Bạn có muốn tra cứu thêm không?", buttons=buttons)
-
-#         return [SlotSet("prescription_date", None)]
-
-
 class ActionSubmitBooking(Action):
     def name(self) -> Text:
         return "action_submit_booking"
@@ -2090,6 +2363,16 @@ class ValidateSearchPrescriptionForm(FormValidationAction):
             info_action.run(dispatcher, tracker, {})
             # Trả về slot dummy để form tiếp tục
             return {"just_asked_examining_doctor": False}
+
+        if latest_intent == "list_all_doctors":
+            list_action = ActionListAllDoctors()
+            list_action.run(dispatcher, tracker, {}) # Dùng {} cho domain
+            return {"just_listed_all_doctors_dummy": False} # Trả về slot dummy để form tiếp tục
+        
+        if latest_intent == "ask_doctor_schedule":
+            schedule_action = ActionShowDoctorSchedule()
+            schedule_action.run(dispatcher, tracker, {})
+            return {"just_asked_doctor_schedule_dummy": False}
 
         return {}
 

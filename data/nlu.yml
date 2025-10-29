@@ -27,6 +27,22 @@ nlu:
       - ê m
       - m ơi
       - E
+      - bạn có thể giúp gì được cho tôi
+      - tôi có thể làm gì với bạn
+      - tôi phải làm gì bây giờ
+      - bây giờ tôi phải làm gì
+      - tôi không biết phải bắt đầu từ đâu
+      - bây giờ sao
+      - làm cái gì bây giờ
+      - Làm cái gì giờ trời
+      - Tôi muốn bắt đầu cuộc nói chuyện và bây giờ tôi phải làm gì
+      - ok bắt đầu thôi
+      - tao phải làm cái gì bây giờ
+      - tao phải bắt đầu từ đâu
+      - làm cái gì đi
+      - tôi chưa biết phải bắt đầu từ đâu
+      - tôi chưa biết là phải làm cái gì
+      - cứu tôi với
 
   - intent: goodbye
     examples: |
@@ -130,6 +146,119 @@ nlu:
       - vấn đề của tôi là [đau đầu](symptom)
       - tôi đang gặp phải [sốt](symptom)
       - triệu chứng là [đau bụng](symptom)
+
+
+      - tôi bị [đau đầu](symptom) và [chóng mặt](symptom)
+      - dạo này tôi hay [mất ngủ](symptom) và [rối loạn trí nhớ](symptom)
+      - bệnh nhân bị [co giật](symptom) và [mất ý thức](symptom)
+      - tôi cảm thấy [tê bì tay chân](symptom) và [run tay](symptom)
+      - triệu chứng là [đau nửa đầu](symptom)
+      - bố tôi bị [yếu liệt](symptom) nửa người và [méo miệng](symptom)
+      - dạo này [nói khó](symptom) và có dấu hiệu [sa sút trí tuệ](symptom)
+      - bị [đau dây thần kinh tọa](symptom)
+      - mắt tôi dạo này [nhìn mờ](symptom) và thỉnh thoảng [nhìn đôi](symptom)
+      - anh ấy bị [lú lẫn](symptom) sau tai nạn
+      - tôi bị [co giật mi mắt](symptom) liên tục
+      - bị [đau vai gáy lan xuống tay](symptom)
+      - tôi bị [rối loạn tiền đình](symptom) nên hay [mất thăng bằng](symptom)
+      - anh ấy bị [liệt mặt](symptom)
+      - ông tôi có [dáng đi bất thường](symptom)
+      - tôi hay bị [ngủ rũ](symptom) vào ban ngày
+      - con tôi có triệu chứng [mộng du](symptom)
+
+
+      - tôi bị [sốt](symptom) và [mệt mỏi](symptom)
+      - tôi bị [ho](symptom) và [khó thở](symptom)
+      - [đau ngực](symptom) và [đánh trống ngực](symptom)
+      - tôi bị [đau khớp](symptom) gối
+      - bị [tiêu chảy](symptom) và [buồn nôn](symptom)
+      - tôi [đau bụng](symptom) và [chán ăn](symptom)
+      - dạo này [sụt cân không rõ nguyên nhân](symptom)
+      - da tôi bị [vàng da](symptom)
+      - chân tôi bị [phù nề](symptom)
+      - tôi bị [táo bón](symptom) và [ợ nóng](symptom)
+      - tôi bị [cao huyết áp](symptom)
+      - sáng nay tôi [ho ra máu](symptom)
+      - ăn [khó tiêu](symptom) và [đầy hơi](symptom)
+      - tôi bị [tiểu nhiều](symptom) và [khát nước nhiều](symptom)
+      - cổ tôi bị [sưng hạch](symptom)
+      - da dẻ [da xanh xao](symptom) và [dễ bầm tím](symptom)
+
+
+      - tôi bị [chấn thương](symptom) ở chân
+      - nghi ngờ bị [gãy xương](symptom) tay
+      - tôi có một [vết thương hở](symptom)
+      - tôi bị [đau lưng](symptom) và [đau vai gáy](symptom)
+      - có một [u bướu ngoài da](symptom)
+      - vết mổ bị [sưng tấy](symptom)
+      - cảm thấy [đau sau phẫu thuật](symptom)
+      - tôi bị [bỏng](symptom) nước sôi
+      - nách tôi bị [áp xe](symptom)
+      - tôi bị [đau bụng cấp](symptom) dữ dội
+      - bác sĩ chẩn đoán [thoát vị](symptom)
+      - tôi bị [trĩ](symptom)
+      - [vết thương nhiễm trùng](symptom)
+      - đi khám ra [sỏi mật](symptom)
+      - bệnh nhân bị [tắc ruột](symptom)
+      - nghi ngờ [viêm ruột thừa](symptom)
+      - tôi sờ thấy [u vú](symptom)
+      - mẹ tôi bị [bướu cổ (cần phẫu thuật)](symptom)
+
+
+      - con tôi bị [sốt ở trẻ em](symptom)
+      - bé bị [ho ở trẻ em](symptom) và [sổ mũi](symptom)
+      - cháu hay [nôn trớ](symptom) sau khi ăn
+      - bé thở [khò khè](symptom)
+      - con tôi [biếng ăn](symptom) và [chậm lớn](symptom)
+      - [tiêu chảy ở trẻ em](symptom)
+      - bé bị [phát ban](symptom) khắp người
+      - bé bị [vàng da sơ sinh](symptom)
+      - con tôi [co giật do sốt](symptom)
+      - bé [quấy khóc kéo dài](symptom)
+      - [táo bón ở trẻ](symptom)
+      - bé [thở nhanh](symptom) và [bỏ bú](symptom)
+      - nghi ngờ bé [chậm nói](symptom)
+      - con tôi có dấu hiệu [tự kỷ](symptom)
+      - bé bị [dị ứng sữa](symptom)
+      - [rốn lồi](symptom) ở trẻ sơ sinh
+
+
+      - tôi bị [trễ kinh](symptom)
+      - tôi bị [đau bụng dưới](symptom) và [ra khí hư bất thường](symptom)
+      - bị [chảy máu âm đạo](symptom)
+      - vợ tôi bị [ốm nghén](symptom)
+      - tôi bị [đau lưng khi mang thai](symptom)
+      - [rối loạn kinh nguyệt](symptom)
+      - tôi [nghi ngờ mang thai](symptom)
+      - tôi bị [ngứa vùng kín](symptom) và [đau rát khi quan hệ](symptom)
+      - tôi muốn [khám thai định kỳ](symptom)
+      - vợ chồng tôi bị [hiếm muộn](symptom)
+      - bác sĩ nói tôi bị [u xơ tử cung](symptom)
+      - phát hiện [u nang buồng trứng](symptom)
+      - tôi bị [đau bụng kinh dữ dội](symptom)
+      - mẹ tôi bị [ra máu sau mãn kinh](symptom)
+      - tôi muốn [tư vấn tránh thai](symptom)
+      - tôi cần [khám phụ khoa](symptom)
+
+
+      - tôi bị [đau răng](symptom) và [sưng nướu](symptom)
+      - tôi bị [hôi miệng](symptom)
+      - [chảy máu chân răng](symptom) khi đánh răng
+      - tôi bị [viêm lợi](symptom) và [sâu răng](symptom)
+      - [nhức răng](symptom) quá
+      - tôi bị [hàm lệch](symptom)
+      - [răng ê buốt](symptom) khi ăn đồ lạnh
+      - tôi đang [mọc răng khôn](symptom)
+      - bác sĩ nói [viêm tủy răng](symptom)
+      - tôi bị [loét miệng](symptom)
+      - tôi bị [gãy răng](symptom) do tai nạn
+      - [răng mọc lệch](symptom)
+      - tôi [cần nhổ răng](symptom)
+      - tôi muốn [niềng răng](symptom)
+      - tư vấn [làm răng sứ](symptom)
+      - tôi bị [đau khớp thái dương hàm](symptom)
+      - tôi muốn lấy [vôi răng](symptom)
+      - tôi bị [tụt nướu](symptom)
 
   - intent: book_with_doctor
     examples: |
@@ -812,3 +941,53 @@ nlu:
       - khoa thần kinh
       - khám thần kinh
       - nội thần kinh
+
+  - intent: list_all_doctors
+    examples: |
+      - Có những bác sĩ nào trong hệ thống?
+      - liệt kê tất cả bác sĩ
+      - cho tôi xem danh sách bác sĩ
+      - hệ thống có bao nhiêu bác sĩ
+      - tất cả bác sĩ
+      - show all doctors
+      - cho tôi xem tất cả bác sĩ trong hệ thống
+      - danh sách bác sĩ của phòng khám
+
+  - intent: ask_doctor_schedule
+    examples: |
+      - Tôi muốn xem lịch làm việc của bác sĩ [Nguyễn Văn A](doctor_name)
+      - lịch làm việc của bác sĩ [Trần Thị B](doctor_name) như thế nào?
+      - xem lịch của bác sĩ [Lê Văn C](doctor_name)
+      - khi nào bác sĩ [Anh](doctor_name) làm việc
+      - bác sĩ [Dũng](doctor_name) có lịch làm việc không
+      - cho tôi xem lịch tuần này của bác sĩ [Anh](doctor_name)
+      - lịch làm việc [bác sĩ A](doctor_name)
+      - lịch của bác sĩ [A](doctor_name) như thế nào vậy
+      - Bác sĩ [Thị B](doctor_name) có lịch sao vậy
+      - Chừng nào bác sĩ [Nguyễn Văn D](doctor_name) có lịch
+      - Ủa chứ lịch làm việc của [Hoàng Văn D](doctor_name) là sao
+
+  - intent: ask_price
+    examples: |
+      - Giá cả khi khám bệnh là như thế nào vậy
+      - Giá khám bệnh
+      - Giả cả như thế nào
+      - Rẻ hay mắc vậy
+      - Giá sao vậy
+      - Chi phí khám bệnh như thế nào
+      - Chi phí sao
+      - Chi phí tôi phải bỏ ra khi sử dụng dịch vụ là bao nhiêu
+      - Chi phí tôi bỏ ra là bao nhiêu
+      - Chi phí tốn bao nhiêu
+      - Chi phí tốn bao nhiêu cho một lần khám
+      - Chi phí để tôi khám là bao nhiêu
+      - Chi phí mà tôi phải chịu là bao nhiêu
+      - về vấn đề chi phí thì sao
+      - Về vấn đề giá cả thì sao
+      - Chi phí, chi phí như thế nào
+      - Giá, Giá cả thì sao
+      - Ô quên, còn giá cả thì sao
+      - Ô quên, còn chi phí thì sao
+      - Cho tôi biết giá cả khi khám đi
+      - Cho tôi biết chi phí để khám đi
+      - Rẻ mắc sao
