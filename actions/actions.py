@@ -39,7 +39,25 @@ WRONG_INPUT_KEYWORDS = {
 }
 
 # Global variable cho mã bệnh nhân (có thể set động từ slot hoặc config sau)
-MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
+# MA_BN_GLOBAL = "BN0001"  # Ví dụ: "BN001", thay bằng giá trị thực tế hoặc từ tracker.get_slot("patient_id")
+def get_patient_id(tracker: Tracker) -> Text | None:
+    """
+    Lấy maBN (patientId) từ metadata được gửi từ server.js
+    """
+    metadata = tracker.latest_message.get("metadata")
+    
+    if metadata:
+        # Tên "patientId" này phải khớp với key trong server.js
+        patient_id = metadata.get("patientId") 
+        
+        if patient_id:
+            print(f"[DEBUG] Lấy được patientId từ metadata: {patient_id}")
+            return patient_id
+            
+    # Fallback nếu không tìm thấy (ví dụ: guest, hoặc lỗi cấu hình)
+    print("[WARN] Không tìm thấy 'patientId' trong metadata. Người dùng có thể chưa đăng nhập.")
+    return None
+
 
 # === THÊM MỚI ACTION Ở CUỐI FILE HOẶC GẦN CÁC ACTION TRA CỨU KHÁC ===
 class ActionShowDoctorSchedule(Action):
@@ -226,6 +244,7 @@ class ActionListAllDoctors(Action):
             FROM bacsi bs
             LEFT JOIN chuyenmon cm ON bs.maBS = cm.maBS
             LEFT JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+            WHERE bs.vaiTro = "DOCTOR" AND xoa = 0
             GROUP BY bs.maBS, bs.tenBS
             ORDER BY bs.tenBS
             """
@@ -278,7 +297,15 @@ class ActionShowExaminingDoctorInForm(Action):
         return "action_show_examining_doctor_in_form"
 
     def run(self, dispatcher, tracker, domain):
-        print(f"[DEBUG] Running ActionShowExaminingDoctorInForm cho bệnh nhân: {MA_BN_GLOBAL}")
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+
+        # Kiểm tra nếu user đã đăng nhập
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để xem thông tin bác sĩ khám gần nhất.")
+            return [] # Dừng action
+        
+        print(f"[DEBUG] Running ActionShowExaminingDoctorInForm cho bệnh nhân: {patient_id}")
         
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
@@ -293,7 +320,7 @@ class ActionShowExaminingDoctorInForm(Action):
             ORDER BY lk.ngaythangnamkham DESC
             LIMIT 1
             """
-            cursor.execute(query, (MA_BN_GLOBAL,))
+            cursor.execute(query, (patient_id,))
             result = cursor.fetchone()
             cursor.close()
             conn.close()
@@ -460,22 +487,23 @@ class ActionDefaultFallback(Action):
             return [FollowupAction(active_loop)]
         
         else:
-            # NGOÀI FORM - gợi ý chức năng
+            # ⚠️ SỬA ĐỔI: NGOÀI FORM - Gợi ý chức năng VÀ THÊM NÚT HANDOFF
             message = (
                 "Xin lỗi, tôi không hiểu yêu cầu của bạn. 😕\n\n"
                 "Tôi có thể giúp bạn:\n"
-                "🩺 Đề xuất bác sĩ dựa trên triệu chứng\n"
+                "🩺 Đề xuất bác sĩ\n"
                 "📅 Đặt lịch hẹn khám bệnh\n"
-                "❌ Hủy lịch hẹn\n"
-                "📋 Tra cứu thông tin bác sĩ và chuyên khoa\n\n"
-                "Bạn muốn làm gì?"
+                "❌ Hủy lịch hẹn\n\n"
+                "Nếu các chức năng này không đúng ý bạn, bạn có muốn kết nối với hỗ trợ viên không?"
             )
+            
             dispatcher.utter_message(
                 text=message,
                 buttons=[
                     {"title": "Đề xuất bác sĩ", "payload": "/request_doctor"},
                     {"title": "Đặt lịch hẹn", "payload": "/book_appointment"},
-                    {"title": "Hủy lịch hẹn", "payload": "/cancel_appointment"}
+                    # ⚠️ MỚI: Button Handoff - payload này sẽ được xử lý đặc biệt ở frontend
+                    {"title": "🧑‍💼 Kết nối hỗ trợ viên", "payload": "HANDOFF_TO_HUMAN"} 
                 ]
             )
             return [SlotSet("current_task", None)]
@@ -561,6 +589,12 @@ class ValidateCancelAppointmentForm(FormValidationAction):
             # dispatcher.utter_message(text="Vui lòng cung cấp ngày bạn muốn hủy lịch hẹn (DD/MM/YYYY).")
             return {"appointment_date": None}
 
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để hủy lịch hẹn.")
+            return {"appointment_date": None}
+
         date_input = str(slot_value).strip()
         
         # Validate format
@@ -582,7 +616,7 @@ class ValidateCancelAppointmentForm(FormValidationAction):
             WHERE lh.maBN = %s AND DATE(lh.ngaythangnam) = %s AND lh.trangthai != 'hủy'
             ORDER BY lh.khunggio
             """
-            cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+            cursor.execute(query, (patient_id, parsed_date))
             appointments = cursor.fetchall()
             cursor.close()
             conn.close()
@@ -633,6 +667,13 @@ class ValidateCancelAppointmentForm(FormValidationAction):
         if interruption_result:
             return interruption_result
         
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để hủy lịch hẹn.")
+            return {"appointment_date": None}
+
+
         if not slot_value:
             # dispatcher.utter_message(text="Vui lòng chọn một lịch hẹn để hủy.")
             return {"selected_appointment_id": None}
@@ -648,7 +689,7 @@ class ValidateCancelAppointmentForm(FormValidationAction):
             JOIN chuyenkhoa ck ON lh.maCK = ck.maCK
             WHERE lh.mahen = %s AND lh.maBN = %s AND lh.trangthai != 'hủy'
             """
-            cursor.execute(query, (slot_value, MA_BN_GLOBAL))
+            cursor.execute(query, (slot_value, patient_id))
             appointment = cursor.fetchone()
             cursor.close()
             conn.close()
@@ -703,6 +744,12 @@ class ActionConfirmCancelUpdated(Action):
     ) -> List[Dict]:
         selected_id = tracker.get_slot("selected_appointment_id")
         
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để hủy lịch hẹn.")
+            return {"appointment_date": None}
+
         if not selected_id:
             dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
             return []
@@ -718,7 +765,7 @@ class ActionConfirmCancelUpdated(Action):
             JOIN chuyenkhoa ck ON lh.maCK = ck.maCK
             WHERE lh.mahen = %s AND lh.maBN = %s AND lh.trangthai != 'hủy'
             """
-            cursor.execute(query, (selected_id, MA_BN_GLOBAL))
+            cursor.execute(query, (selected_id, patient_id))
             appointment = cursor.fetchone()
             cursor.close()
             conn.close()
@@ -765,6 +812,12 @@ class ActionPerformCancelUpdated(Action):
     ) -> List[Dict]:
         selected_id = tracker.get_slot("selected_appointment_id")
         
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để hủy lịch hẹn.")
+            return {"appointment_date": None}
+        
         if not selected_id:
             dispatcher.utter_message(text="Không có lịch hẹn được chọn.")
             return []
@@ -774,7 +827,7 @@ class ActionPerformCancelUpdated(Action):
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor()
             query = "UPDATE lichhen SET trangthai = 'hủy' WHERE mahen = %s AND maBN = %s"
-            cursor.execute(query, (selected_id, MA_BN_GLOBAL))
+            cursor.execute(query, (selected_id, patient_id))
             conn.commit()
             rows_affected = cursor.rowcount
             cursor.close()
@@ -825,7 +878,7 @@ class ActionListDoctorsInForm(Action):
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
             query = """
-            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS, bs.gioithieu
+            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS, bs.emailBS, bs.diachiBS
             FROM bacsi bs
             JOIN chuyenmon cm ON bs.maBS = cm.maBS
             JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
@@ -855,7 +908,7 @@ class ActionListDoctorsInForm(Action):
                     <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
                     <div>📞 <strong>SĐT:</strong> {doc['sdtBS']}</div>
                     <div>✉️ <strong>Email:</strong> {doc.get('emailBS', 'Chưa có')}</div>
-                    <div>✉️ <strong>Giới thiệu:</strong> {doc.get('gioithieu', 'Chưa có phần giới thiệu')}</div>
+                    # <div>✉️ <strong>Địa chỉ:</strong> {doc.get('diachiBS')}</div>
                 </div>
                 """
 
@@ -1841,6 +1894,11 @@ class ValidateBookAppointmentForm(FormValidationAction):
         """
         Validate mô tả bệnh - SAU ĐÓ KIỂM TRA TRÙNG LỊCH
         """
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để đặt lịch")
+            return {"decription": None}
         
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng cung cấp mô tả chi tiết về tình trạng của bạn.")
@@ -1923,7 +1981,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
               AND DATE(lh.ngaythangnam) = %s
               AND lh.trangthai != 'hủy'
             """
-            cursor.execute(query_duplicate, (MA_BN_GLOBAL, maBS, parsed_date))
+            cursor.execute(query_duplicate, (patient_id, maBS, parsed_date))
             existing_appointments = cursor.fetchall()
             
             cursor.close()
@@ -2220,7 +2278,12 @@ class ActionSubmitBooking(Action):
         date_str = tracker.get_slot("date")
         appointment_time = tracker.get_slot("appointment_time")
         decription = tracker.get_slot("decription")
-
+        
+        patient_id = get_patient_id(tracker)
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để đặt lịch")
+            return []
+        
         if not all([doctor_name, specialty, date_str, appointment_time, decription]):
             dispatcher.utter_message(text="Thông tin chưa đầy đủ. Vui lòng hoàn tất form.")
             return []
@@ -2262,7 +2325,7 @@ class ActionSubmitBooking(Action):
             INSERT INTO lichhen (mahen, maBN, maBS, ngaythangnam, khunggio, trangthai, maCK)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(query, (mahen, MA_BN_GLOBAL, maBS, parsed_date, appointment_time, 'chờ', decription))
+            cursor.execute(query, (mahen, patient_id, maBS, parsed_date, appointment_time, 'chờ', decription))
             conn.commit()
             cursor.close()
             conn.close()
@@ -2384,6 +2447,13 @@ class ValidateSearchPrescriptionForm(FormValidationAction):
         domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
         """Validate ngày khám để tra cứu toa thuốc"""
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        
+        # Kiểm tra nếu user đã đăng nhập
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để xem toa thuốc.")
+            return [] # Dừng action
         
         # === CHECK INTERRUPTION TRƯỚC ===
         interruption_result = self._handle_form_interruption(dispatcher, tracker)
@@ -2462,6 +2532,13 @@ class ActionShowPrescriptionResults(Action):
         
         prescription_date = tracker.get_slot("prescription_date")
         search_latest = tracker.get_slot("search_latest_prescription")
+        # Lấy maBN động
+        patient_id = get_patient_id(tracker)
+        
+        # Kiểm tra nếu user đã đăng nhập
+        if not patient_id:
+            dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để xem toa thuốc.")
+            return [] # Dừng action
         
         if not prescription_date and not search_latest:
             dispatcher.utter_message(text="Không có thông tin ngày khám hoặc yêu cầu tìm toa thuốc.")
@@ -2490,7 +2567,7 @@ class ActionShowPrescriptionResults(Action):
                 ORDER BY lk.ngaythangnamkham DESC
                 LIMIT 20
                 """
-                cursor.execute(query, (MA_BN_GLOBAL,))
+                cursor.execute(query, (patient_id,))
                 prescriptions = cursor.fetchall()
                 
                 if not prescriptions:
@@ -2525,7 +2602,7 @@ class ActionShowPrescriptionResults(Action):
                 WHERE hs.maBN = %s AND DATE(lk.ngaythangnamkham) = %s
                 ORDER BY t.tenThuoc
                 """
-                cursor.execute(query, (MA_BN_GLOBAL, parsed_date))
+                cursor.execute(query, (patient_id, parsed_date))
                 prescriptions = cursor.fetchall()
                 
                 if not prescriptions:
