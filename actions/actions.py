@@ -5,12 +5,11 @@ from rasa_sdk.events import SlotSet, FollowupAction, ActiveLoop
 from rasa_sdk.forms import FormValidationAction
 import mysql.connector
 from mysql.connector import Error
-from datetime import datetime
 import os
 from dotenv import load_dotenv
 import re  # Thêm để parse payload fallback
 from rasa_sdk.types import DomainDict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import google.generativeai as genai
 
 # Load file .env
@@ -76,7 +75,7 @@ class ActionShowDoctorSchedule(Action):
         """Helper để xử lý time_obj (có thể là timedelta)"""
         if isinstance(time_obj, timedelta):
             return (datetime.min + time_obj).time().strftime('%H:%M')
-        elif isinstance(time_obj, datetime.time):
+        elif isinstance(time_obj, time):
             return time_obj.strftime('%H:%M')
         return str(time_obj)
 
@@ -244,7 +243,7 @@ class ActionListAllDoctors(Action):
             FROM bacsi bs
             LEFT JOIN chuyenmon cm ON bs.maBS = cm.maBS
             LEFT JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
-            WHERE bs.vaiTro = "DOCTOR" AND xoa = 0
+            WHERE bs.vaiTro = "DOCTOR" AND bs.xoa = 0
             GROUP BY bs.maBS, bs.tenBS
             ORDER BY bs.tenBS
             """
@@ -428,7 +427,7 @@ class ActionDefaultFallback(Action):
             
             # 1. Thông báo không hiểu
             dispatcher.utter_message(
-                text="Xin lỗi, tôi không hiểu rõ câu trả lời của bạn. 🤔"
+                text="Xin lỗi, tôi không hiểu rõ câu nói của bạn. 🤔"
             )
             
             # 2. Hỏi lại slot hiện tại với gợi ý cụ thể
@@ -1407,7 +1406,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
         if isinstance(time_obj, timedelta):
             # Chuyển timedelta (ví dụ: 8:00:00) thành time object (8:00)
             return (datetime.min + time_obj).time().strftime('%H:%M')
-        elif isinstance(time_obj, datetime.time): # Check if it's already a time object
+        elif isinstance(time_obj, time): # Check if it's already a time object
             return time_obj.strftime('%H:%M')
         return str(time_obj) # Fallback
 
@@ -3040,3 +3039,116 @@ class ActionHandleDeny(Action):
         ]
         
         return events
+
+
+# (Dán vào cuối file actions.py)
+# ================================ NHẮC LỊCH HẸN ============================
+
+class ActionCheckUpcomingAppointments(Action):
+    """
+    Action tự động kiểm tra và nhắc nhở lịch hẹn sắp tới khi người dùng
+    gửi intent 'greet' (được coi như vừa đăng nhập).
+    """
+    def name(self) -> Text:
+        return "action_check_upcoming_appointments"
+
+    def _format_time(self, time_obj):
+        """Helper để xử lý time_obj (có thể là timedelta hoặc time)"""
+        if isinstance(time_obj, timedelta):
+            return (datetime.min + time_obj).time().strftime('%H:%M')
+        elif isinstance(time_obj, time):
+            return time_obj.strftime('%H:%M')
+        return str(time_obj)
+
+    def _get_vietnamese_day_name(self, weekday_index):
+        """Helper để chuyển 0-6 sang Thứ 2 - Chủ Nhật"""
+        days_vn = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật"]
+        return days_vn[weekday_index]
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict]:
+        
+        # 1. Lấy maBN (patient_id) từ metadata
+        patient_id = get_patient_id(tracker)
+        
+        print(f"[DEBUG] ActionCheckUpcomingAppointments: Đã nhận được patient_id: {patient_id}")
+
+        # 2. Chỉ chạy nếu user đã đăng nhập (có patient_id)
+        if not patient_id:
+            print("[DEBUG] ActionCheckUpcomingAppointments: Không có patient_id, bỏ qua.")
+            return []
+
+        print(f"[DEBUG] Đang chạy ActionCheckUpcomingAppointments cho bệnh nhân: {patient_id}")
+        
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            # 3. Lấy ngày hôm nay
+            today_date = datetime.now().date()
+            
+            # 4. Query lịch hẹn SẮP TỚI (từ hôm nay) và CHƯA KHÁM
+            query = """
+            SELECT 
+                lh.mahen, 
+                lh.ngaythangnam, 
+                lh.khunggio, 
+                bs.tenBS, 
+                ck.tenCK
+            FROM lichhen lh
+            JOIN bacsi bs ON lh.maBS = bs.maBS
+            JOIN chuyenkhoa ck ON lh.maCK = ck.maCK
+            WHERE lh.maBN = %s 
+              AND DATE(lh.ngaythangnam) >= %s
+              AND lh.trangthai = 'ChuaKham'
+            ORDER BY lh.ngaythangnam, lh.khunggio
+            LIMIT 3 
+            """ # Giới hạn 3 lịch hẹn gần nhất cho gọn
+            
+            cursor.execute(query, (patient_id, today_date))
+            appointments = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            # 5. Nếu có lịch hẹn, gửi thông báo
+            if appointments:
+                html_message = f"""
+                <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;
+                            background: #fffbef; border-left: 5px solid #ffc107; border-radius: 8px;
+                            padding: 12px 16px; margin: 10px 0;">
+                    <div style="font-weight: bold; color: #856404; margin-bottom: 8px;">
+                        🔔 **Thông báo lịch hẹn sắp tới:**
+                    </div>
+                """
+                
+                for appt in appointments:
+                    date_obj = appt['ngaythangnam']
+                    day_name_vn = self._get_vietnamese_day_name(date_obj.weekday())
+                    date_str = date_obj.strftime('%d/%m/%Y')
+                    time_str = self._format_time(appt['khunggio'])
+                    
+                    html_message += f"""
+                    <div style="background: #ffffff; border: 1px solid #eee; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;">
+                        <div><strong>Ngày:</strong> {day_name_vn}, {date_str} - <strong>Giờ:</strong> {time_str}</div>
+                        <div><strong>Bác sĩ:</strong> {appt['tenBS']} ({appt['tenCK']})</div>
+                        <div><strong>Mã hẹn:</strong> {appt['mahen']}</div>
+                    </div>
+                    """
+                
+                html_message += """
+                    <div style="margin-top: 8px; font-style: italic; font-size: 14px;">
+                        👉 Vui lòng đến đúng giờ. Bạn có thể <strong>hủy lịch</strong> nếu bận.
+                    </div>
+                </div>
+                """
+                
+                # Gửi thông báo lịch hẹn
+                dispatcher.utter_message(text=html_message, html=True)
+            else:
+                # ⚠️ THÊM DÒNG NÀY ĐỂ DEBUG ⚠️
+                print(f"[DEBUG] ActionCheckUpcomingAppointments: Không tìm thấy lịch hẹn nào cho {patient_id}.")
+
+        except Error as e:
+            print(f"[ERROR] Lỗi DB trong ActionCheckUpcomingAppointments: {e}")
+            # Không báo lỗi cho user, chỉ log
+        
+        return []

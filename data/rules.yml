@@ -378,3 +378,9 @@ rules:
     steps:
       - intent: goodbye
       - action: utter_goodbye
+
+  - rule: Kích hoạt kiểm tra lịch hẹn khi người dùng đăng nhập
+    steps:
+      - intent: trigger_reminder_check_on_login
+      - action: action_check_upcoming_appointments
+      - action: action_listen

@@ -28,6 +28,7 @@ intents:
   - ask_who_examined_me # ← THÊM MỚI
   - list_all_doctors # ← THÊM MỚI
   - ask_doctor_schedule
+  - trigger_reminder_check_on_login
 
 entities:
   - symptom
@@ -169,6 +170,7 @@ slots:
           - ask_who_examined_me
           - list_all_doctors
           - ask_doctor_schedule
+          - trigger_reminder_check_on_login
 
   search_latest_prescription:
     type: bool
@@ -204,6 +206,7 @@ slots:
           - ask_who_examined_me
           - list_all_doctors
           - ask_doctor_schedule
+          - trigger_reminder_check_on_login
 
   doctor_name:
     type: text
@@ -244,6 +247,7 @@ slots:
           - ask_who_examined_me
           - list_all_doctors
           - ask_doctor_schedule
+          - trigger_reminder_check_on_login
 
   appointment_time:
     type: text
@@ -288,6 +292,7 @@ slots:
           - ask_who_examined_me
           - list_all_doctors
           - ask_doctor_schedule
+          - trigger_reminder_check_on_login
       - type: custom
 
   decription:
@@ -343,6 +348,7 @@ slots:
           - ask_who_examined_me
           - list_all_doctors
           - ask_doctor_schedule
+          - trigger_reminder_check_on_login
 
   date:
     type: text
@@ -382,6 +388,7 @@ slots:
           - ask_who_examined_me
           - list_all_doctors
           - ask_doctor_schedule
+          - trigger_reminder_check_on_login
       - type: custom
 
   selected_appointment_id:
@@ -445,6 +452,8 @@ responses:
           payload: "/book_appointment"
         - title: "💊 Tra cứu toa thuốc"
           payload: "/search_prescription"
+        - title: "🧑‍💼 Kết nối hỗ trợ viên"
+          payload: "HANDOFF_TO_HUMAN"
       metadata:
         html: true
 
@@ -622,6 +631,7 @@ actions:
   - validate_search_prescription_form # ← THÊM MỚI
   - action_show_prescription_results # ← THÊM MỚI
   - action_get_latest_prescription # ← THÊM MỚI
+  - action_check_upcoming_appointments
   - action_show_examining_doctor_in_form
   - action_list_all_doctors
   - action_show_doctor_schedule

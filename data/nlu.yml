@@ -453,6 +453,8 @@ nlu:
       - tên bác sĩ là [bác sĩ Hoàng](doctor_name)
       - tra cứu bác sĩ [Nguyễn Văn D](doctor_name)
       - bác sĩ [Nguyễn Văn A](doctor_name) thông tin
+      - bác sĩ [Hoàng Văn E](doctor_name) khám về cái gì
+      - bác sĩ [Văn E](doctor_name) khám cái gì
 
   # ==================================== Tra cứu thông tin chuyên khoa =============================================================
   - intent: explain_specialty
@@ -944,14 +946,50 @@ nlu:
 
   - intent: list_all_doctors
     examples: |
+      - tụi bây có những bác sĩ nào
       - Có những bác sĩ nào trong hệ thống?
-      - liệt kê tất cả bác sĩ
-      - cho tôi xem danh sách bác sĩ
-      - hệ thống có bao nhiêu bác sĩ
-      - tất cả bác sĩ
-      - show all doctors
-      - cho tôi xem tất cả bác sĩ trong hệ thống
-      - danh sách bác sĩ của phòng khám
+      - Liệt kê tất cả bác sĩ
+      - Cho tôi xem danh sách bác sĩ
+      - Hệ thống có bao nhiêu bác sĩ?
+      - Tất cả bác sĩ
+      - Show all doctors
+      - Cho tôi xem tất cả bác sĩ trong hệ thống
+      - Danh sách bác sĩ của phòng khám
+      - Bạn có những bác sĩ nào?
+      - Ai đang làm bác sĩ trong phòng khám?
+      - Hiện có những bác sĩ nào đang làm việc?
+      - Danh sách các bác sĩ hiện tại
+      - Cho biết danh sách bác sĩ
+      - Hiện có bao nhiêu bác sĩ trong hệ thống?
+      - Liệt kê các bác sĩ đang công tác
+      - Bác sĩ nào đang có trong danh sách?
+      - Tôi muốn biết các bác sĩ hiện có
+      - Hãy cho tôi biết tất cả tên bác sĩ
+      - Có thể cho tôi xem danh sách bác sĩ được không?
+      - Xem danh sách bác sĩ
+      - In ra danh sách bác sĩ
+      - Danh sách tất cả bác sĩ
+      - Hệ thống quản lý những bác sĩ nào?
+      - Tôi muốn xem toàn bộ bác sĩ
+      - Toàn bộ bác sĩ trong hệ thống
+      - Hãy hiển thị danh sách bác sĩ
+      - Hiển thị tất cả bác sĩ
+      - Hiển thị danh sách bác sĩ phòng khám
+      - Danh sách bác sĩ hiện đang làm việc
+      - Có bao nhiêu bác sĩ đang hoạt động?
+      - Liệt kê các bác sĩ đang làm việc
+      - Danh sách bác sĩ hiện có trong dữ liệu
+      - Hệ thống có liệt kê danh sách bác sĩ không?
+      - Tôi muốn biết thông tin về các bác sĩ
+      - Cho tôi xem thông tin bác sĩ
+      - Danh sách bác sĩ hiện hành
+      - Danh sách bác sĩ mới nhất
+      - Danh sách tất cả các bác sĩ hiện có
+      - Cho tôi xem tên tất cả bác sĩ
+      - Hiển thị danh sách bác sĩ giúp tôi
+      - Có bao nhiêu bác sĩ đang có mặt?
+      - Danh sách bác sĩ đầy đủ
+      - Tất cả các bác sĩ có trong hệ thống
 
   - intent: ask_doctor_schedule
     examples: |
@@ -991,3 +1029,21 @@ nlu:
       - Cho tôi biết giá cả khi khám đi
       - Cho tôi biết chi phí để khám đi
       - Rẻ mắc sao
+
+  - intent: trigger_reminder_check_on_login
+    examples: |
+      - các lịch hẹn gần đây của tôi
+      - các lịch hẹn gần tới
+      - lịch hẹn gần đây
+      - có lịch hẹn nào gần tới hạn không?
+      - có lịch hẹn nào chưa khám không
+      - gần đây có những lịch hẹn ngoài
+      - các lịch hẹn gần đây
+      - lịch khám gần đây của tôi
+      - lịch hẹn của tôi
+      - hôm nay có những lịch hẹn nào
+      - các lịch khám
+      - tôi có các lịch khám nào
+      - có lịch khám nào đang chưa khám hay không
+      - có lịch khám nào còn hẹn không
+      - trigger_reminder_check_on_login
