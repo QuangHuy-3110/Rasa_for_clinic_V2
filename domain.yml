@@ -86,12 +86,48 @@ slots:
     mappings:
       - type: custom
 
+  # symptoms:
+  #   type: list
+  #   influence_conversation: false
+  #   mappings:
+  #     - type: from_entity
+  #       entity: symptom
+
   symptoms:
-    type: list
+    type: text # Lưu dạng văn bản
     influence_conversation: false
     mappings:
-      - type: from_entity
-        entity: symptom
+      # Mapping quan trọng nhất: Lấy toàn bộ text người dùng nhập
+      - type: from_text
+        conditions:
+          - active_loop: recommend_doctor_form # Chỉ lấy khi đang trong form này
+        not_intent: # Trừ các intent điều hướng (để tránh bắt nhầm lệnh hủy/chào)
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - provide_date
+          - provide_time
+          - provide_decription
+          - choose_doctor_name
+          - book_with_doctor
+          - explain_specialty
+          - ask_doctor_info
+          - list_doctors_by_specialty
+          - cancel_appointment
+          # - provide_cancel_date
+          - select_appointment
+          - out_of_scope
+          - search_prescription
+          - request_latest_prescription
+          - nlu_fallback # ← THÊM
+          - ask_who_examined_me
+          - list_all_doctors
+          - ask_doctor_schedule
+          - trigger_reminder_check_on_login
 
   doctor_id:
     type: text
@@ -310,6 +346,35 @@ slots:
           - provide_decription
           - provide_medical_info
       - type: custom
+      - type: from_text
+        not_intent: # Trừ các intent điều hướng (để tránh bắt nhầm lệnh hủy/chào)
+          - provide_medical_info
+          - greet
+          - goodbye
+          - affirm
+          - deny
+          - book_appointment
+          - request_doctor
+          - provide_specialty
+          - provide_date
+          - provide_time
+          # - provide_decription
+          - choose_doctor_name
+          - book_with_doctor
+          - explain_specialty
+          - ask_doctor_info
+          - list_doctors_by_specialty
+          - cancel_appointment
+          # - provide_cancel_date
+          - select_appointment
+          - out_of_scope
+          - search_prescription
+          - request_latest_prescription
+          - nlu_fallback # ← THÊM
+          - ask_who_examined_me
+          - list_all_doctors
+          - ask_doctor_schedule
+          - trigger_reminder_check_on_login
 
   specialty:
     type: text

@@ -11,6 +11,7 @@ import re  # Thêm để parse payload fallback
 from rasa_sdk.types import DomainDict
 from datetime import datetime, timedelta, time
 import google.generativeai as genai
+import json # ⚠️ QUAN TRỌNG: Nhớ import json ở đầu file actions.py
 
 # Load file .env
 load_dotenv()
@@ -1101,7 +1102,7 @@ class ActionExplainSpecialtyInForm(Action):
                 
                 if not explanation:  # If mota is None or empty
                     # Use Gemini API to generate explanation
-                    model = genai.GenerativeModel('gemini-1.5-flash')  # Or your preferred model
+                    model = genai.GenerativeModel('models/gemini-2.0-flash')  # Or your preferred model
                     prompt = f"Giải thích ngắn gọn về chuyên khoa y tế '{specialty}' bằng tiếng Việt."
                     response = model.generate_content(prompt)
                     explanation = response.text.strip() if response else f"Chuyên khoa {specialty}..."
@@ -1178,6 +1179,8 @@ class ValidateMyForm(FormValidationAction):
         return await super().run(dispatcher, tracker, domain)
 
 
+# actions.py
+
 class ValidateRecommendDoctorForm(FormValidationAction):
     def name(self) -> Text:
         return "validate_recommend_doctor_form"
@@ -1189,147 +1192,349 @@ class ValidateRecommendDoctorForm(FormValidationAction):
         tracker: Tracker,
         domain: Dict[Text, Any],
     ) -> Dict[Text, Any]:
-        symptoms = tracker.latest_message.get('entities', [])
-        symptom_list = [e['value'] for e in symptoms if e['entity'] == 'symptom']
-        return {"symptoms": symptom_list}
+        text_value = str(slot_value).strip()
 
+        # 1. Bỏ qua nếu là lệnh command (bắt đầu bằng /)
+        if text_value.startswith("/"):
+            return {"symptoms": None}
+
+        # 2. Kiểm tra độ dài (tránh người dùng gõ bừa 1-2 ký tự)
+        if len(text_value) < 4:
+            dispatcher.utter_message(text="Mô tả quá ngắn. Vui lòng kể rõ hơn về triệu chứng của bạn (hoặc của người thân).")
+            return {"symptoms": None}
+
+        # 3. OK -> Lưu nguyên câu văn đó vào slot
+        return {"symptoms": text_value}
+
+
+# class ActionRecommendDoctor(Action):
+#     def name(self) -> Text:
+#         return "action_recommend_doctor"
+
+#     def run(
+#         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+#     ) -> List[Dict]:
+#         symptoms = tracker.get_slot("symptoms") or []
+#         if not symptoms:
+#             dispatcher.utter_message(text="Không nhận được triệu chứng. Hãy thử lại.")
+#             return []
+
+#         symptom_to_specialty = {
+#             # Thần kinh
+#             "đau đầu": "Thần kinh", "chóng mặt": "Thần kinh", "mất ngủ": "Thần kinh", "co giật": "Thần kinh",
+#             "tê bì tay chân": "Thần kinh", "rối loạn trí nhớ": "Thần kinh", "đau nửa đầu": "Thần kinh",
+#             "run tay": "Thần kinh", "mất thăng bằng": "Thần kinh", "yếu liệt": "Thần kinh", "méo miệng": "Thần kinh",
+#             "nói khó": "Thần kinh", "sa sút trí tuệ": "Thần kinh", "đau dây thần kinh tọa": "Thần kinh",
+#             "nhìn mờ": "Thần kinh", # (có thể liên quan Mắt, nhưng cũng là dấu hiệu thần kinh)
+#             "nhìn đôi": "Thần kinh", "mất ý thức": "Thần kinh", "lú lẫn": "Thần kinh", "co giật mi mắt": "Thần kinh",
+#             "đau vai gáy lan xuống tay": "Thần kinh", "rối loạn tiền đình": "Thần kinh", "liệt mặt": "Thần kinh",
+#             "dáng đi bất thường": "Thần kinh", "ngủ rũ": "Thần kinh", "mộng du": "Thần kinh",
+
+#             # Nội khoa (Khoa rất rộng, bao gồm nhiều chuyên khoa nhỏ)
+#             "sốt": "Nội khoa", "mệt mỏi": "Nội khoa", "ho": "Nội khoa", "khó thở": "Nội khoa",
+#             "đau ngực": "Nội khoa", "đau khớp": "Nội khoa", "tiêu chảy": "Nội khoa", "buồn nôn": "Nội khoa",
+#             "đau bụng": "Nội khoa", "chán ăn": "Nội khoa", "sụt cân không rõ nguyên nhân": "Nội khoa",
+#             "vàng da": "Nội khoa", "phù nề": "Nội khoa", "táo bón": "Nội khoa", "ợ nóng": "Nội khoa",
+#             "cao huyết áp": "Nội khoa", "đánh trống ngực": "Nội khoa", "ho ra máu": "Nội khoa",
+#             "khó tiêu": "Nội khoa", "đầy hơi": "Nội khoa", "tiểu nhiều": "Nội khoa", "khát nước nhiều": "Nội khoa",
+#             "sưng hạch": "Nội khoa", "da xanh xao": "Nội khoa", "dễ bầm tím": "Nội khoa",
+
+#             # Ngoại khoa
+#             "chấn thương": "Ngoại khoa", "gãy xương": "Nội khoa", # (Nội khoa để điều trị ban đầu, nhưng Ngoại Chấn thương chỉnh hình sẽ xử lý chính) -> Sửa thành "Ngoại khoa" cho nhất quán
+#             "gãy xương": "Ngoại khoa", "vết thương hở": "Ngoại khoa",
+#             "đau lưng": "Ngoại khoa", # (Có thể do Thần kinh, Cơ xương khớp, hoặc Ngoại)
+#             "đau vai gáy": "Ngoại khoa", # (Như trên)
+#             "u bướu ngoài da": "Ngoại khoa", "sưng tấy": "Ngoại khoa", "đau sau phẫu thuật": "Ngoại khoa",
+#             "bỏng": "Ngoại khoa", "áp xe": "Ngoại khoa", "đau bụng cấp": "Ngoại khoa",
+#             "thoát vị": "Ngoại khoa", "trĩ": "Ngoại khoa", "vết thương nhiễm trùng": "Ngoại khoa",
+#             "sỏi mật": "Ngoại khoa", "tắc ruột": "Ngoại khoa", "viêm ruột thừa": "Ngoại khoa",
+#             "u vú": "Ngoại khoa", "bướu cổ (cần phẫu thuật)": "Ngoại khoa",
+
+#             # Nhi khoa
+#             "sốt ở trẻ em": "Nhi khoa", "ho ở trẻ em": "Nhi khoa", "nôn trớ": "Nhi khoa",
+#             "khò khè": "Nhi khoa", "biếng ăn": "Nhi khoa", "tiêu chảy ở trẻ em": "Nhi khoa",
+#             "phát ban": "Nhi khoa", "sổ mũi": "Nhi khoa", "chậm lớn": "Nhi khoa",
+#             "vàng da sơ sinh": "Nhi khoa", "co giật do sốt": "Nhi khoa", "quấy khóc kéo dài": "Nhi khoa",
+#             "táo bón ở trẻ": "Nhi khoa", "thở nhanh": "Nhi khoa", "bỏ bú": "Nhi khoa",
+#             "chậm nói": "Nhi khoa", "tự kỷ": "Nhi khoa", # (Thường cần Tâm lý/Tâm thần Nhi, nhưng Nhi khoa là nơi khám sàng lọc đầu tiên)
+#             "dị ứng sữa": "Nhi khoa", "rốn lồi": "Nhi khoa",
+
+#             # Sản khoa (Thường là Sản Phụ khoa)
+#             "trễ kinh": "Sản khoa", "đau bụng dưới": "Sản khoa", "ra khí hư bất thường": "Sản khoa",
+#             "chảy máu âm đạo": "Sản khoa", "ốm nghén": "Sản khoa", "đau lưng khi mang thai": "Sản khoa",
+#             "rối loạn kinh nguyệt": "Sản khoa", "nghi ngờ mang thai": "Sản khoa", "ngứa vùng kín": "Sản khoa",
+#             "đau rát khi quan hệ": "Sản khoa", "khám thai định kỳ": "Sản khoa", "hiếm muộn": "Sản khoa",
+#             "u xơ tử cung": "Sản khoa", "u nang buồng trứng": "Sản khoa", "đau bụng kinh dữ dội": "Sản khoa",
+#             "ra máu sau mãn kinh": "Sản khoa", "tư vấn tránh thai": "Sản khoa", "khám phụ khoa": "Sản khoa",
+
+#             # Răng Hàm Mặt
+#             "đau răng": "Răng Hàm Mặt", "sưng nướu": "Răng Hàm Mặt", "hôi miệng": "Răng Hàm Mặt",
+#             "chảy máu chân răng": "Răng Hàm Mặt", "viêm lợi": "Răng Hàm Mặt", "sâu răng": "Răng Hàm Mặt",
+#             "nhức răng": "Răng Hàm Mặt", "hàm lệch": "Răng Hàm Mặt", "răng ê buốt": "Răng Hàm Mặt",
+#             "mọc răng khôn": "Răng Hàm Mặt", "viêm tủy răng": "Răng Hàm Mặt", "loét miệng": "Răng Hàm Mặt",
+#             "gãy răng": "Răng Hàm Mặt", "răng mọc lệch": "Răng Hàm Mặt", "cần nhổ răng": "Răng Hàm Mặt",
+#             "niềng răng": "Răng Hàm Mặt", "làm răng sứ": "Răng Hàm Mặt", "đau khớp thái dương hàm": "Răng Hàm Mặt",
+#             "vôi răng": "Răng Hàm Mặt", "tụt nướu": "Răng Hàm Mặt",
+#         }
+
+#         specialties = set()
+#         for symptom in symptoms:
+#             specialty = symptom_to_specialty.get(symptom.lower(), "Tổng quát")
+#             specialties.add(specialty)
+
+#         suggested_specialty = ", ".join(specialties) if specialties else "Tổng quát"
+
+#         try:
+#             conn = mysql.connector.connect(**DB_CONFIG)
+#             cursor = conn.cursor(dictionary=True)
+#             placeholders = ','.join(['%s'] * len(specialties))
+#             query = f"""
+#             SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS
+#             FROM bacsi bs
+#             JOIN chuyenmon cm ON bs.maBS = cm.maBS
+#             JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+#             WHERE ck.tenCK IN ({placeholders})
+#             """
+#             cursor.execute(query, tuple(specialties))
+#             doctors = cursor.fetchall()
+#             cursor.close()
+#             conn.close()
+#         except Error as e:
+#             dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
+#             return []
+
+#         if not doctors:
+#             dispatcher.utter_message(text="Rất tiếc, không tìm thấy bác sĩ phù hợp.")
+#             return [SlotSet("specialty_suggested", None)]
+
+#         dispatcher.utter_message(
+#             text=f"""
+#             <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #f9fbff; border-radius: 10px; padding: 10px 12px; border: 1px solid #cce0ff;">
+#                 <div style="color: #007bff; font-weight: bold; margin-bottom: 8px;">
+#                     🔍 Dựa trên triệu chứng, tôi đề xuất chuyên khoa <span style="color:#0056b3;">{suggested_specialty}</span>.
+#                 </div>
+#                 <div style="margin-bottom: 6px;">Dưới đây là danh sách bác sĩ phù hợp:</div>
+#             </div>
+#             """, 
+#             html=True
+#         )
+
+#         for doc in doctors:
+#             doc_card = f"""
+#             <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #ffffff; border-left: 3px solid #007bff; border-radius: 8px; padding: 8px 10px; margin: 6px 0;">
+#                 <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
+#                 <div><strong>Chuyên khoa:</strong> {doc['tenCK']}</div>
+#                 <div><strong>Là chuyên gia trong lĩnh vực này</strong> </div>
+#                 <div><strong>Liên hệ:</strong> {doc['sdtBS']}</div>
+#             </div>
+#             """
+#             dispatcher.utter_message(
+#                 text=doc_card,
+#                 buttons=[{
+#                     "title": "📅 Đặt lịch", 
+#                     "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
+#                 }],
+#                 html=True
+#             )
+
+
+#         return [SlotSet("specialty_suggested", suggested_specialty),
+#                 SlotSet("current_task", None),
+#                 SlotSet("symptoms", None),
+#                 SlotSet("decription", None)]
+
+import json # ⚠️ QUAN TRỌNG: Nhớ import json ở đầu file actions.py
+import re   # Thêm re để xử lý chuỗi regex
 
 class ActionRecommendDoctor(Action):
     def name(self) -> Text:
         return "action_recommend_doctor"
 
+    def _get_all_specialties(self):
+        """Lấy danh sách tất cả tên chuyên khoa từ DB"""
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            cursor.execute("SELECT tenCK FROM chuyenkhoa")
+            rows = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            return rows
+        except Error as e:
+            print(f"[ERROR] Cannot fetch specialties: {e}")
+            return []
+
+    def _consult_gemini_for_specialty(self, symptom_text, valid_specialties):
+        """Hỏi Gemini để map triệu chứng vào danh sách chuyên khoa (Trả về LIST)"""
+        try:
+            specialties_str = ", ".join([f'"{s}"' for s in valid_specialties])
+            
+            # --- SỬA ĐỔI 1: Prompt yêu cầu trả về JSON List ---
+            prompt = f"""
+            Bạn là hệ thống điều phối bệnh nhân.
+            
+            DỮ LIỆU:
+            1. Danh sách chuyên khoa hiện có: [{specialties_str}]
+            2. Triệu chứng người dùng: "{symptom_text}"
+            
+            YÊU CẦU:
+            - Phân tích triệu chứng và chọn ra các chuyên khoa phù hợp từ danh sách trên.
+            - Nếu người dùng có nhiều triệu chứng (ví dụ: mẹ đau lưng, con sốt), hãy liệt kê TẤT CẢ chuyên khoa phù hợp.
+            - Ưu tiên: "Con/Bé" -> "Nhi khoa".
+            - OUTPUT FORMAT: Chỉ trả về một mảng JSON (JSON Array) chứa tên các chuyên khoa. 
+            - Ví dụ: ["Nội khoa"] hoặc ["Nhi khoa", "Sản phụ khoa"].
+            - Không giải thích thêm.
+            """
+
+            model = genai.GenerativeModel('models/gemini-2.0-flash')
+            response = model.generate_content(prompt)
+            
+            raw_text = response.text.strip()
+            
+            # --- SỬA ĐỔI 2: Xử lý chuỗi JSON trả về ---
+            # Gemini thường trả về dạng ```json [...] ```, cần cắt bỏ markdown
+            if "```" in raw_text:
+                match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                if match:
+                    raw_text = match.group(0)
+                else:
+                    raw_text = "[]"
+            
+            # Parse string thành List Python
+            try:
+                suggested_list = json.loads(raw_text)
+            except json.JSONDecodeError:
+                # Nếu lỗi parse, thử fallback về text thuần nếu nó khớp với 1 chuyên khoa
+                for spec in valid_specialties:
+                    if spec.lower() in raw_text.lower():
+                        return [spec]
+                return ["Nội khoa"]
+
+            # --- SỬA ĐỔI 3: Validate lại với DB ---
+            final_list = []
+            if isinstance(suggested_list, list):
+                for item in suggested_list:
+                    # Tìm item trong valid_specialties (so sánh không phân biệt hoa thường)
+                    for db_spec in valid_specialties:
+                        if str(item).lower() == db_spec.lower():
+                            final_list.append(db_spec)
+                            break
+            
+            # Nếu list rỗng hoặc lỗi, fallback
+            if not final_list:
+                return ["Nội khoa"] if "Nội khoa" in valid_specialties else ([valid_specialties[0]] if valid_specialties else [])
+            
+            # Xóa trùng lặp và trả về LIST
+            return list(set(final_list))
+
+        except Exception as e:
+            print(f"[ERROR] Gemini API Error: {e}")
+            # Luôn trả về LIST, kể cả khi lỗi
+            return ["Nội khoa"] if "Nội khoa" in valid_specialties else []
+
     def run(
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> List[Dict]:
-        symptoms = tracker.get_slot("symptoms") or []
-        if not symptoms:
-            dispatcher.utter_message(text="Không nhận được triệu chứng. Hãy thử lại.")
+        
+        # Lấy input (Code bạn đã viết tốt rồi)
+        user_msg = tracker.latest_message.get('text')
+        symptom_slot = tracker.get_slot("symptoms")
+        desc_slot = tracker.get_slot("decription")
+        
+        possible_inputs = [user_msg, symptom_slot, desc_slot]
+        valid_inputs = [str(t) for t in possible_inputs if t]
+        
+        if not valid_inputs:
+            dispatcher.utter_message(text="Vui lòng mô tả lại triệu chứng.")
             return []
+            
+        final_symptom_text = max(valid_inputs, key=len)
 
-        symptom_to_specialty = {
-            # Thần kinh
-            "đau đầu": "Thần kinh", "chóng mặt": "Thần kinh", "mất ngủ": "Thần kinh", "co giật": "Thần kinh",
-            "tê bì tay chân": "Thần kinh", "rối loạn trí nhớ": "Thần kinh", "đau nửa đầu": "Thần kinh",
-            "run tay": "Thần kinh", "mất thăng bằng": "Thần kinh", "yếu liệt": "Thần kinh", "méo miệng": "Thần kinh",
-            "nói khó": "Thần kinh", "sa sút trí tuệ": "Thần kinh", "đau dây thần kinh tọa": "Thần kinh",
-            "nhìn mờ": "Thần kinh", # (có thể liên quan Mắt, nhưng cũng là dấu hiệu thần kinh)
-            "nhìn đôi": "Thần kinh", "mất ý thức": "Thần kinh", "lú lẫn": "Thần kinh", "co giật mi mắt": "Thần kinh",
-            "đau vai gáy lan xuống tay": "Thần kinh", "rối loạn tiền đình": "Thần kinh", "liệt mặt": "Thần kinh",
-            "dáng đi bất thường": "Thần kinh", "ngủ rũ": "Thần kinh", "mộng du": "Thần kinh",
+        # dispatcher.utter_message(text=f"⏳ Đang phân tích: \"{final_symptom_text}\"...")
 
-            # Nội khoa (Khoa rất rộng, bao gồm nhiều chuyên khoa nhỏ)
-            "sốt": "Nội khoa", "mệt mỏi": "Nội khoa", "ho": "Nội khoa", "khó thở": "Nội khoa",
-            "đau ngực": "Nội khoa", "đau khớp": "Nội khoa", "tiêu chảy": "Nội khoa", "buồn nôn": "Nội khoa",
-            "đau bụng": "Nội khoa", "chán ăn": "Nội khoa", "sụt cân không rõ nguyên nhân": "Nội khoa",
-            "vàng da": "Nội khoa", "phù nề": "Nội khoa", "táo bón": "Nội khoa", "ợ nóng": "Nội khoa",
-            "cao huyết áp": "Nội khoa", "đánh trống ngực": "Nội khoa", "ho ra máu": "Nội khoa",
-            "khó tiêu": "Nội khoa", "đầy hơi": "Nội khoa", "tiểu nhiều": "Nội khoa", "khát nước nhiều": "Nội khoa",
-            "sưng hạch": "Nội khoa", "da xanh xao": "Nội khoa", "dễ bầm tím": "Nội khoa",
+        valid_specialties = self._get_all_specialties()
+        
+        # Gọi hàm (Bây giờ chắc chắn trả về List)
+        suggested_specialties = self._consult_gemini_for_specialty(final_symptom_text, valid_specialties)
 
-            # Ngoại khoa
-            "chấn thương": "Ngoại khoa", "gãy xương": "Nội khoa", # (Nội khoa để điều trị ban đầu, nhưng Ngoại Chấn thương chỉnh hình sẽ xử lý chính) -> Sửa thành "Ngoại khoa" cho nhất quán
-            "gãy xương": "Ngoại khoa", "vết thương hở": "Ngoại khoa",
-            "đau lưng": "Ngoại khoa", # (Có thể do Thần kinh, Cơ xương khớp, hoặc Ngoại)
-            "đau vai gáy": "Ngoại khoa", # (Như trên)
-            "u bướu ngoài da": "Ngoại khoa", "sưng tấy": "Ngoại khoa", "đau sau phẫu thuật": "Ngoại khoa",
-            "bỏng": "Ngoại khoa", "áp xe": "Ngoại khoa", "đau bụng cấp": "Ngoại khoa",
-            "thoát vị": "Ngoại khoa", "trĩ": "Ngoại khoa", "vết thương nhiễm trùng": "Ngoại khoa",
-            "sỏi mật": "Ngoại khoa", "tắc ruột": "Ngoại khoa", "viêm ruột thừa": "Ngoại khoa",
-            "u vú": "Ngoại khoa", "bướu cổ (cần phẫu thuật)": "Ngoại khoa",
+        print(f"[DEBUG] Input: {final_symptom_text} -> Gemini: {suggested_specialties}")
 
-            # Nhi khoa
-            "sốt ở trẻ em": "Nhi khoa", "ho ở trẻ em": "Nhi khoa", "nôn trớ": "Nhi khoa",
-            "khò khè": "Nhi khoa", "biếng ăn": "Nhi khoa", "tiêu chảy ở trẻ em": "Nhi khoa",
-            "phát ban": "Nhi khoa", "sổ mũi": "Nhi khoa", "chậm lớn": "Nhi khoa",
-            "vàng da sơ sinh": "Nhi khoa", "co giật do sốt": "Nhi khoa", "quấy khóc kéo dài": "Nhi khoa",
-            "táo bón ở trẻ": "Nhi khoa", "thở nhanh": "Nhi khoa", "bỏ bú": "Nhi khoa",
-            "chậm nói": "Nhi khoa", "tự kỷ": "Nhi khoa", # (Thường cần Tâm lý/Tâm thần Nhi, nhưng Nhi khoa là nơi khám sàng lọc đầu tiên)
-            "dị ứng sữa": "Nhi khoa", "rốn lồi": "Nhi khoa",
-
-            # Sản khoa (Thường là Sản Phụ khoa)
-            "trễ kinh": "Sản khoa", "đau bụng dưới": "Sản khoa", "ra khí hư bất thường": "Sản khoa",
-            "chảy máu âm đạo": "Sản khoa", "ốm nghén": "Sản khoa", "đau lưng khi mang thai": "Sản khoa",
-            "rối loạn kinh nguyệt": "Sản khoa", "nghi ngờ mang thai": "Sản khoa", "ngứa vùng kín": "Sản khoa",
-            "đau rát khi quan hệ": "Sản khoa", "khám thai định kỳ": "Sản khoa", "hiếm muộn": "Sản khoa",
-            "u xơ tử cung": "Sản khoa", "u nang buồng trứng": "Sản khoa", "đau bụng kinh dữ dội": "Sản khoa",
-            "ra máu sau mãn kinh": "Sản khoa", "tư vấn tránh thai": "Sản khoa", "khám phụ khoa": "Sản khoa",
-
-            # Răng Hàm Mặt
-            "đau răng": "Răng Hàm Mặt", "sưng nướu": "Răng Hàm Mặt", "hôi miệng": "Răng Hàm Mặt",
-            "chảy máu chân răng": "Răng Hàm Mặt", "viêm lợi": "Răng Hàm Mặt", "sâu răng": "Răng Hàm Mặt",
-            "nhức răng": "Răng Hàm Mặt", "hàm lệch": "Răng Hàm Mặt", "răng ê buốt": "Răng Hàm Mặt",
-            "mọc răng khôn": "Răng Hàm Mặt", "viêm tủy răng": "Răng Hàm Mặt", "loét miệng": "Răng Hàm Mặt",
-            "gãy răng": "Răng Hàm Mặt", "răng mọc lệch": "Răng Hàm Mặt", "cần nhổ răng": "Răng Hàm Mặt",
-            "niềng răng": "Răng Hàm Mặt", "làm răng sứ": "Răng Hàm Mặt", "đau khớp thái dương hàm": "Răng Hàm Mặt",
-            "vôi răng": "Răng Hàm Mặt", "tụt nướu": "Răng Hàm Mặt",
-        }
-
-        specialties = set()
-        for symptom in symptoms:
-            specialty = symptom_to_specialty.get(symptom.lower(), "Tổng quát")
-            specialties.add(specialty)
-
-        suggested_specialty = ", ".join(specialties) if specialties else "Tổng quát"
-
-        try:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            cursor = conn.cursor(dictionary=True)
-            placeholders = ','.join(['%s'] * len(specialties))
-            query = f"""
-            SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS
-            FROM bacsi bs
-            JOIN chuyenmon cm ON bs.maBS = cm.maBS
-            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
-            WHERE ck.tenCK IN ({placeholders})
-            """
-            cursor.execute(query, tuple(specialties))
-            doctors = cursor.fetchall()
-            cursor.close()
-            conn.close()
-        except Error as e:
-            dispatcher.utter_message(text=f"Lỗi kết nối DB: {e}")
-            return []
-
-        if not doctors:
-            dispatcher.utter_message(text="Rất tiếc, không tìm thấy bác sĩ phù hợp.")
-            return [SlotSet("specialty_suggested", None)]
-
-        dispatcher.utter_message(
-            text=f"""
-            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #f9fbff; border-radius: 10px; padding: 10px 12px; border: 1px solid #cce0ff;">
-                <div style="color: #007bff; font-weight: bold; margin-bottom: 8px;">
-                    🔍 Dựa trên triệu chứng, tôi đề xuất chuyên khoa <span style="color:#0056b3;">{suggested_specialty}</span>.
+        # Logic hiển thị (Code cũ của bạn sẽ chạy đúng với List)
+        if len(suggested_specialties) == 1:
+             dispatcher.utter_message(
+                text=f"""
+                <div style="font-family: Arial, sans-serif; background: #e7f3ff; padding: 10px; border-radius: 8px; border: 1px solid #b3d7ff;">
+                    🔍 Dựa trên mô tả, tôi đề xuất chuyên khoa: <b>{suggested_specialties[0]}</b>.
                 </div>
-                <div style="margin-bottom: 6px;">Dưới đây là danh sách bác sĩ phù hợp:</div>
-            </div>
-            """, 
-            html=True
-        )
-
-        for doc in doctors:
-            doc_card = f"""
-            <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; background: #ffffff; border-left: 3px solid #007bff; border-radius: 8px; padding: 8px 10px; margin: 6px 0;">
-                <div style="font-weight: bold; color: #007bff;">🩺 Bác sĩ {doc['tenBS']}</div>
-                <div><strong>Chuyên khoa:</strong> {doc['tenCK']}</div>
-                <div><strong>Là chuyên gia trong lĩnh vực này</strong> </div>
-                <div><strong>Liên hệ:</strong> {doc['sdtBS']}</div>
-            </div>
-            """
+                """,
+                html=True
+            )
+        else:
+            specs_text = ", ".join(suggested_specialties)
             dispatcher.utter_message(
-                text=doc_card,
-                buttons=[{
-                    "title": "📅 Đặt lịch", 
-                    "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
-                }],
+                text=f"""
+                <div style="font-family: Arial, sans-serif; background: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba;">
+                    🔍 Tôi nhận thấy có <b>{len(suggested_specialties)} vấn đề cần khám</b> ({specs_text}).<br>
+                    Dưới đây là bác sĩ cho từng chuyên khoa:
+                </div>
+                """,
                 html=True
             )
 
+        # Query DB và hiển thị bác sĩ
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+            
+            for spec in suggested_specialties:
+                query = """
+                SELECT bs.maBS, bs.tenBS, ck.tenCK, bs.sdtBS
+                FROM bacsi bs
+                JOIN chuyenmon cm ON bs.maBS = cm.maBS
+                JOIN chuyenkhoa ck ON cm.maCK = ck.maCK
+                WHERE ck.tenCK = %s
+                LIMIT 3
+                """
+                cursor.execute(query, (spec,))
+                doctors = cursor.fetchall()
+                
+                if doctors:
+                    dispatcher.utter_message(
+                        text=f"🏥 <b>Danh sách bác sĩ {spec}:</b>", 
+                        html=True
+                    )
+                    
+                    for doc in doctors:
+                        doc_card = f"""
+                        <div style="margin-left: 15px; margin-bottom: 8px; border-left: 3px solid #28a745; padding-left: 10px;">
+                            <b>👨‍⚕️ BS {doc['tenBS']}</b><br>
+                            📞 {doc['sdtBS']}
+                        </div>
+                        """
+                        dispatcher.utter_message(
+                            text=doc_card,
+                            buttons=[{
+                                "title": f"Đặt lịch với bác sĩ {doc['tenBS']}", 
+                                "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
+                            }],
+                            html=True
+                        )
+                else:
+                    dispatcher.utter_message(text=f"⚠️ Hiện chưa có bác sĩ trực thuộc khoa {spec}.")
 
-        return [SlotSet("specialty_suggested", suggested_specialty),
-                SlotSet("current_task", None),
-                SlotSet("symptoms", None),
-                SlotSet("decription", None)]
+            cursor.close()
+            conn.close()
 
+        except Error as e:
+            dispatcher.utter_message(text=f"Lỗi DB: {e}")
+        
+        # Reset slots
+        return [
+            SlotSet("specialty_suggested", ", ".join(suggested_specialties)),
+            SlotSet("current_task", None),
+            SlotSet("symptoms", None),
+            SlotSet("decription", None)
+        ]
 
 class ActionBookWithDoctor(Action):
     def name(self) -> Text:
@@ -1490,25 +1695,24 @@ class ValidateBookAppointmentForm(FormValidationAction):
 
     def _show_doctor_schedule_in_form(self, maBS: str, tenBS: str, dispatcher: CollectingDispatcher):
         """
-        Helper: Lấy và hiển thị lịch làm việc tuần này cho bác sĩ
-        (Dùng chung trong validate_doctor_name)
+        Helper: Hiển thị TẤT CẢ lịch làm việc tuần này (Không lọc trạng thái).
         """
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
 
-            # Tính toán tuần hiện tại (Thứ 2 -> Chủ Nhật)
+            # Tính toán tuần hiện tại
             today = datetime.now().date()
             start_of_week = today - timedelta(days=today.weekday())
             end_of_week = start_of_week + timedelta(days=6)
 
-            # Query lịch làm việc trong tuần (SỬA ĐỔI: Thêm AND trangthai != 'Nghỉ')
+            # === SỬA ĐỔI SQL: BỎ ĐIỀU KIỆN LỌC TRẠNG THÁI ===
             query_schedule = """
             SELECT ngaythangnam, giobatdau, gioketthuc, trangthai
             FROM thoigiankham
             WHERE maBS = %s 
               AND DATE(ngaythangnam) BETWEEN %s AND %s
-              AND trangthai != 'Nghỉ'
+            -- Đã xóa dòng: AND trangthai != 'Nghỉ'
             ORDER BY ngaythangnam, giobatdau
             """
             cursor.execute(query_schedule, (maBS, start_of_week, end_of_week))
@@ -1516,19 +1720,14 @@ class ValidateBookAppointmentForm(FormValidationAction):
             cursor.close()
             conn.close()
 
-            if not schedule_rows:
-                dispatcher.utter_message(
-                    text=f"Bác sĩ **{tenBS}** không có lịch làm việc nào (không tính ngày nghỉ) trong tuần này (từ {start_of_week.strftime('%d/%m')} đến {end_of_week.strftime('%d/%m')})."
-                )
-                return
-
-            # Xử lý và nhóm dữ liệu theo ngày
+            # Xử lý dữ liệu nhóm theo ngày
             schedule_by_date = {}
-            for row in schedule_rows:
-                date_obj = row['ngaythangnam']
-                if date_obj not in schedule_by_date:
-                    schedule_by_date[date_obj] = []
-                schedule_by_date[date_obj].append(row)
+            if schedule_rows:
+                for row in schedule_rows:
+                    date_obj = row['ngaythangnam']
+                    if date_obj not in schedule_by_date:
+                        schedule_by_date[date_obj] = []
+                    schedule_by_date[date_obj].append(row)
 
             # Tạo bảng HTML
             html_table = f"""
@@ -1537,7 +1736,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
                     width: 100%; max-width: 450px; border-collapse: collapse;
                     font-family: Arial, sans-serif; background: white;
                     border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                    margin-top: 8px; /* Thêm margin top */
+                    margin-top: 8px;
                 }}
                 .schedule-table th, .schedule-table td {{
                     padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee;
@@ -1546,10 +1745,16 @@ class ValidateBookAppointmentForm(FormValidationAction):
                     background-color: #f8faff; color: #007bff; font-size: 14px;
                 }}
                 .schedule-table .date-cell {{
-                    font-weight: bold; color: #333; font-size: 14px;
+                    font-weight: bold; color: #333; font-size: 14px; width: 40%;
                 }}
-                .schedule-table .shift-cell div {{
-                    margin-bottom: 4px;
+                .shift-item {{ margin-bottom: 4px; font-size: 14px; }}
+                /* Tô màu trạng thái để dễ nhìn */
+                .status-ghi {{ color: #dc3545; font-weight: bold; font-style: italic; }} /* Màu đỏ cho Nghỉ */
+                .status-ok {{ color: #28a745; font-weight: bold; }} /* Màu xanh cho Sẵn sàng */
+                .status-full {{ color: #6c757d; text-decoration: line-through; }} /* Màu xám gạch ngang */
+                
+                .empty-schedule {{
+                    text-align: center; color: #888; font-style: italic; padding: 20px;
                 }}
             </style>
             <div style="font-family: Arial, sans-serif; font-size: 15px; margin-bottom: 8px; margin-top: 8px;">
@@ -1566,25 +1771,42 @@ class ValidateBookAppointmentForm(FormValidationAction):
                 <tbody>
             """
             
-            # Điền dữ liệu vào bảng
-            for date_obj, shifts in sorted(schedule_by_date.items()):
-                day_name_vn = self._get_vietnamese_day_name(date_obj.weekday())
-                date_str = date_obj.strftime('%d/%m')
-                
-                shifts_html = ""
-                for shift in shifts:
-                    start_time = self._format_time(shift['giobatdau'])
-                    end_time = self._format_time(shift['gioketthuc'])
-                    
-                    # SỬA ĐỔI: Bỏ hiển thị trạng thái
-                    shifts_html += f"<div>{start_time} - {end_time}</div>"
-                
-                html_table += f"""
-                    <tr>
-                        <td class="date-cell" style="padding-right: 20px;">{day_name_vn} ({date_str})</td>
-                        <td class="shift-cell" style="padding-left: 20px;">{shifts_html}</td>
-                    </tr>
+            if not schedule_rows:
+                html_table += """
+                    <tr><td colspan="2" class="empty-schedule">Không có lịch làm việc trong tuần này.</td></tr>
                 """
+            else:
+                for date_obj, shifts in sorted(schedule_by_date.items()):
+                    day_name_vn = self._get_vietnamese_day_name(date_obj.weekday())
+                    date_str = date_obj.strftime('%d/%m')
+                    
+                    shifts_html = ""
+                    for shift in shifts:
+                        start_time = self._format_time(shift['giobatdau'])
+                        end_time = self._format_time(shift['gioketthuc'])
+                        status = shift['trangthai']
+                        
+                        # Logic tô màu trạng thái
+                        status_class = "status-ok"
+                        if status == "Nghỉ":
+                            status_class = "status-ghi"
+                        elif status in ["Đã đầy", "Hoàn thành", "Full"]:
+                            status_class = "status-full"
+                            
+                        # Hiển thị: Giờ - Giờ (Trạng thái)
+                        shifts_html += f"""
+                        <div class="shift-item">
+                            {start_time} - {end_time} 
+                            <span class="{status_class}">({status})</span>
+                        </div>
+                        """
+                    
+                    html_table += f"""
+                        <tr>
+                            <td class="date-cell">{day_name_vn} ({date_str})</td>
+                            <td class="shift-cell">{shifts_html}</td>
+                        </tr>
+                    """
             
             html_table += "</tbody></table>"
             dispatcher.utter_message(text=html_table, html=True)
@@ -1600,55 +1822,31 @@ class ValidateBookAppointmentForm(FormValidationAction):
     def validate_specialty(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        """Validate chuyên khoa - VÀ HIỂN THỊ LỊCH NẾU BÁC SĨ ĐÃ ĐƯỢC CHỌN TRƯỚC"""
+        """Validate chuyên khoa"""
         
-        # === CHECK INTERRUPTION TRƯỚC - LẤY GIÁ TRỊ CŨ ===
+        # 1. Kiểm tra Interruption (Giữ nguyên)
         latest_intent = tracker.latest_message.get('intent', {}).get('name')
         old_specialty = tracker.get_slot("specialty")
-        
-        # Nếu là intent interruption, xử lý và giữ nguyên slot cũ
         if latest_intent in ["explain_specialty", "ask_doctor_info", "list_doctors_by_specialty", "ask_who_examined_me", "list_all_doctors", "ask_doctor_schedule"]:
             interruption_result = self._handle_form_interruption(dispatcher, tracker)
             if interruption_result:
-                # Trả về giá trị cũ thay vì giá trị mới bị extract sai
                 return {"specialty": old_specialty}
         
-        # === VALIDATION BÌNH THƯỜNG ===
         if not slot_value:
             dispatcher.utter_message(text="Vui lòng chọn chuyên khoa.")
             return {"specialty": None}
 
+        # 2. Validate với DB (Giữ nguyên)
         specialty_input = str(slot_value).strip().lower()
-        
-        # Detect nếu user hỏi thay vì trả lời (fallback detection)
-        question_keywords = ["là gì", "chữa gì", "làm gì", "có phải", "giải thích", "thông tin"]
-        if any(kw in specialty_input for kw in question_keywords):
-            dispatcher.utter_message(
-                text="Tôi nhận thấy bạn đang hỏi về chuyên khoa. "
-                     "Bạn có thể hỏi riêng hoặc vui lòng chỉ nhập TÊN chuyên khoa để đặt lịch.\n"
-                     "Ví dụ: 'nội khoa', 'nhi khoa', 'thần kinh'."
-            )
-            return {"specialty": old_specialty}
-        
-        if self._detect_wrong_input('specialty', specialty_input):
-            dispatcher.utter_message(
-                text="Đó có vẻ là thông tin khác. Vui lòng nhập tên chuyên khoa."
-            )
-            return {"specialty": None}
-
-        # Validate với DB
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
             query = "SELECT tenCK, maCK FROM chuyenkhoa WHERE LOWER(tenCK) = %s"
             cursor.execute(query, (specialty_input,))
             result = cursor.fetchone()
+            # Chưa đóng kết nối vội
         except Error as e:
             dispatcher.utter_message(text=f"Lỗi DB: {e}")
-            # Đảm bảo đóng kết nối nếu lỗi xảy ra SỚM
-            if 'conn' in locals() and conn.is_connected():
-                cursor.close()
-                conn.close()
             return {"specialty": None}
 
         if not result:
@@ -1658,43 +1856,49 @@ class ValidateBookAppointmentForm(FormValidationAction):
             return {"specialty": None}
 
         validated_specialty = result['tenCK']
+
+        # =========================================================================
+        # 👇 LOGIC SỬA ĐỔI ĐỂ CHỐNG TRÙNG LẶP 👇
+        # =========================================================================
         
-        # ===============================================
-        # === PHẦN SỬA ĐỔI QUAN TRỌNG ===
-        # ===============================================
-        # Kiểm tra xem bác sĩ đã được chọn trước đó chưa (trường hợp 1 tên, nhiều khoa)
         doctor_name = tracker.get_slot("doctor_name")
         
         if doctor_name:
-            print(f"[DEBUG] ValidateSpecialty: Bác sĩ '{doctor_name}' đã được chọn, đang kiểm tra lịch cho chuyên khoa '{validated_specialty}'")
+            # Kiểm tra xem trong lượt nhập này có thông tin Bác sĩ không?
+            # (Check entity 'doctor_name' hoặc 'doctor_id' trong tin nhắn mới nhất)
+            entities = tracker.latest_message.get('entities', [])
+            has_doctor_entity = any(e['entity'] in ['doctor_name', 'doctor_id'] for e in entities)
             
-            # Query để tìm maBS của bác sĩ này TRONG chuyên khoa này
-            query_doc = """
-            SELECT bs.maBS, bs.tenBS 
-            FROM bacsi bs 
-            JOIN chuyenmon cm ON bs.maBS = cm.maBS
-            JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
-            WHERE ck.tenCK = %s AND LOWER(bs.tenBS) LIKE %s
-            """
-            # Dùng LIKE %...% cho an toàn, giống validate_doctor_name
-            cursor.execute(query_doc, (validated_specialty, f"%{doctor_name.lower()}%")) 
-            doc_match = cursor.fetchone()
-            
-            if doc_match:
-                # TÌM THẤY! Đây là lúc hiển thị lịch
-                print(f"[DEBUG] ValidateSpecialty: Đã xác thực BS {doc_match['tenBS']} (maBS: {doc_match['maBS']}). Hiển thị lịch.")
+            # Nếu CÓ entity bác sĩ -> Nghĩa là validate_doctor_name CŨNG chạy trong lượt này.
+            # -> validate_doctor_name đã (hoặc sẽ) hiển thị lịch rồi.
+            # -> validate_specialty KHÔNG ĐƯỢC hiển thị nữa.
+            if has_doctor_entity:
+                print("[DEBUG] Skip showing schedule in validate_specialty (handled by validate_doctor_name)")
+                cursor.close()
+                conn.close()
+                return {"specialty": validated_specialty}
+
+            # Nếu KHÔNG có entity bác sĩ -> Nghĩa là người dùng đang nhập riêng Chuyên khoa (Flow rời rạc).
+            # -> Lúc này validate_specialty PHẢI hiển thị lịch.
+            try:
+                query_doc = """
+                SELECT bs.maBS, bs.tenBS 
+                FROM bacsi bs 
+                JOIN chuyenmon cm ON bs.maBS = cm.maBS
+                JOIN chuyenkhoa ck ON cm.maCK = ck.maCK 
+                WHERE ck.tenCK = %s AND LOWER(bs.tenBS) LIKE %s
+                """
+                cursor.execute(query_doc, (validated_specialty, f"%{doctor_name.lower()}%"))
+                doc_match = cursor.fetchone()
                 
-                # Gọi hàm helper hiển thị lịch
-                self._show_doctor_schedule_in_form(doc_match["maBS"], doc_match["tenBS"], dispatcher)
-            else:
-                # Trường hợp này ít xảy ra (trừ khi user cố tình chọn sai chuyên khoa)
-                print(f"[WARN] ValidateSpecialty: BS '{doctor_name}' đã được chọn, nhưng không tìm thấy trong chuyên khoa '{validated_specialty}'.")
-                
-        # Đóng kết nối ở cuối
+                if doc_match:
+                    self._show_doctor_schedule_in_form(doc_match["maBS"], doc_match["tenBS"], dispatcher)
+            except Error as e:
+                print(f"[ERROR] Check doctor schedule: {e}")
+
         cursor.close()
         conn.close()
 
-        # Trả về chuyên khoa đã validate
         return {"specialty": validated_specialty}
 
     def validate_doctor_name(
@@ -1905,7 +2109,10 @@ class ValidateBookAppointmentForm(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
         """
-        Validate ngày khám - PHẢI LÀ NGÀY BÁC SĨ CÓ LỊCH LÀM VIỆC VÀ KHÔNG NGHỈ
+        Validate ngày khám:
+        - Chỉ cần Bác sĩ có lịch (có record trong thoigiankham).
+        - VÀ trạng thái ca làm việc KHÁC 'Nghỉ'.
+        - Chấp nhận tất cả trạng thái khác (HoanThanh, Full, v.v...).
         """
         
         if not slot_value:
@@ -1913,30 +2120,26 @@ class ValidateBookAppointmentForm(FormValidationAction):
             return {"date": None}
 
         date_input = str(slot_value).strip()
-        if self._detect_wrong_input('date', date_input):
-            dispatcher.utter_message(text="Tôi nghĩ bạn đang mô tả bệnh. Vui lòng nhập ngày theo định dạng DD/MM/YYYY.")
-            return {"date": None}
-
-        # Parse ngày
+        
+        # 1. Parse và kiểm tra định dạng ngày
         try:
             parsed_date = datetime.strptime(date_input, '%d/%m/%Y').date()
         except ValueError:
-            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY.")
+            dispatcher.utter_message(text="Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY (Ví dụ: 25/10/2025).")
             return {"date": None}
 
-        # Kiểm tra ngày trong tương lai
+        # 2. Kiểm tra ngày trong quá khứ (Vẫn nên giữ để tránh đặt lùi lịch)
         today = datetime.now().date()
         if parsed_date < today:
-            dispatcher.utter_message(text="Ngày hẹn phải trong tương lai. Vui lòng chọn ngày khác.")
+            dispatcher.utter_message(text="Ngày hẹn phải từ hôm nay trở đi. Vui lòng chọn ngày khác.")
             return {"date": None}
 
-        # LẤY THÔNG TIN BÁC SĨ
+        # 3. Lấy thông tin bác sĩ
         doctor_name = tracker.get_slot("doctor_name")
         if not doctor_name:
-            dispatcher.utter_message(text="Lỗi: Chưa có thông tin bác sĩ.")
+            dispatcher.utter_message(text="Lỗi: Chưa có thông tin bác sĩ để kiểm tra lịch.")
             return {"date": None}
 
-        # KIỂM TRA BÁC SĨ CÓ LỊCH LÀM VIỆC TRONG NGÀY NÀY KHÔNG
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
@@ -1947,14 +2150,17 @@ class ValidateBookAppointmentForm(FormValidationAction):
             if not bs_result:
                 cursor.close()
                 conn.close()
-                dispatcher.utter_message(text="Lỗi: Không tìm thấy mã bác sĩ.")
+                dispatcher.utter_message(text=f"Không tìm thấy bác sĩ {doctor_name} trong hệ thống.")
                 return {"date": None}
             
             maBS = bs_result['maBS']
             
-            # Kiểm tra lịch làm việc trong ngày và trạng thái KHÔNG phải "Nghỉ"
+            # 4. QUERY LOGIC MỚI THEO YÊU CẦU:
+            # - Tìm lịch làm việc của bác sĩ trong ngày đó.
+            # - Chỉ loại bỏ những ca có trạng thái là 'Nghỉ'.
+            # - KHÔNG quan tâm các trạng thái khác (HoanThanh, DaDat, v.v...) -> Vẫn hiển thị.
             query = """
-            SELECT ngaythangnam, giobatdau, gioketthuc, trangthai
+            SELECT giobatdau, gioketthuc, trangthai
             FROM thoigiankham
             WHERE maBS = %s 
               AND DATE(ngaythangnam) = %s 
@@ -1968,34 +2174,39 @@ class ValidateBookAppointmentForm(FormValidationAction):
             
             if not schedule:
                 dispatcher.utter_message(
-                    text=f"❌ Bác sĩ {doctor_name} không có lịch làm việc hoặc đang nghỉ vào ngày {date_input}.\n"
+                    text=f"❌ Bác sĩ {doctor_name} không có lịch làm việc (hoặc đã báo nghỉ) vào ngày {date_input}.\n"
                          f"Vui lòng chọn ngày khác."
                 )
                 return {"date": None}
             
-            # Hiển thị lịch làm việc trong ngày
+            # 5. Hiển thị các ca làm việc tìm được
+            # Vì bạn không quan tâm trạng thái hoàn thành, ta chỉ hiển thị Giờ để user chọn
             schedule_html = f"""
             <div style="font-family: Arial, sans-serif; background: #e7f3ff;
                         border-left: 5px solid #007bff; border-radius: 8px;
                         padding: 12px 16px; margin: 10px 0;">
                 <p style="font-weight: bold; color: #007bff; margin: 0 0 8px 0;">
-                    ✅ Bác sĩ {doctor_name} có lịch làm việc ngày {date_input}:
+                    ✅ Các khung giờ làm việc ngày {date_input}:
                 </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             """
             
-            for idx, slot in enumerate(schedule, 1):
-                # (Sử dụng _format_time từ lần sửa trước)
+            for slot in schedule:
+                # Helper _format_time giả sử đã có trong class, nếu chưa bạn dùng str(slot['giobatdau'])
                 start_time_str = self._format_time(slot['giobatdau'])
                 end_time_str = self._format_time(slot['gioketthuc'])
                 
-                # SỬA ĐỔI: Bỏ (✓ {slot['trangthai']})
+                # Hiển thị đơn giản: Giờ bắt đầu - Giờ kết thúc
                 schedule_html += f"""
-                <div style="background: white; border-radius: 6px; padding: 8px; margin: 4px 0;">
-                    <strong>Ca {idx}:</strong> {start_time_str} - {end_time_str}
-                </div>
+                <span style="background: white; border: 1px solid #007bff; color: #007bff; 
+                             padding: 4px 8px; border-radius: 4px; font-size: 14px;">
+                    {start_time_str} - {end_time_str}
+                </span>
                 """
             
             schedule_html += """
+                </div>
+                <p style="margin: 8px 0 0 0; font-size: 14px;">👉 Vui lòng nhập giờ bạn muốn đặt (HH:MM).</p>
             </div>
             """
             dispatcher.utter_message(text=schedule_html, metadata={"html": True})
@@ -2003,7 +2214,8 @@ class ValidateBookAppointmentForm(FormValidationAction):
             return {"date": date_input}
             
         except Error as e:
-            dispatcher.utter_message(text=f"Lỗi DB: {e}")
+            print(f"[ERROR] DB Error in validate_date: {e}")
+            dispatcher.utter_message(text="Có lỗi xảy ra khi kết nối cơ sở dữ liệu.")
             return {"date": None}
 
     def validate_appointment_time(
@@ -2141,9 +2353,10 @@ class ValidateBookAppointmentForm(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
         """
-        Validate mô tả bệnh - SAU ĐÓ KIỂM TRA TRÙNG LỊCH
+        Validate mô tả bệnh.
+        SỬA ĐỔI: Nếu chưa có đủ ngày/giờ/bác sĩ -> Vẫn chấp nhận mô tả, bỏ qua check trùng lịch.
         """
-        # Lấy maBN động
+        # 1. Kiểm tra đăng nhập
         patient_id = get_patient_id(tracker)
         if not patient_id:
             dispatcher.utter_message(text="Lỗi: Bạn cần đăng nhập để đặt lịch")
@@ -2154,29 +2367,34 @@ class ValidateBookAppointmentForm(FormValidationAction):
             return {"decription": None}
 
         desc_input = str(slot_value).strip()
+        
+        # 2. Validate nội dung mô tả (Độ dài, keyword sai...)
         if self._detect_wrong_input('decription', desc_input):
             dispatcher.utter_message(text="Vui lòng mô tả bệnh chi tiết.")
             return {"decription": None}
 
-        if len(desc_input) < 5:
+        if len(desc_input) < 4:
             dispatcher.utter_message(text="Mô tả quá ngắn. Vui lòng cung cấp thêm chi tiết.")
             return {"decription": None}
 
-        # ========== KIỂM TRA TRÙNG LỊCH ==========
+        # ========== KIỂM TRA TRÙNG LỊCH (LOGIC MỚI) ==========
         doctor_name = tracker.get_slot("doctor_name")
         date_str = tracker.get_slot("date")
         appointment_time_str = tracker.get_slot("appointment_time")
         
+        # [QUAN TRỌNG] Nếu thiếu 1 trong các thông tin cần thiết để check trùng
         if not all([doctor_name, date_str, appointment_time_str]):
-            dispatcher.utter_message(text="Lỗi: Thiếu thông tin để kiểm tra trùng lịch.")
-            return {"decription": None}
+            # Không báo lỗi nữa, mà CHẤP NHẬN mô tả luôn.
+            # Việc check trùng sẽ để dành cho ActionSubmitBooking hoặc khi đủ thông tin.
+            return {"decription": desc_input}
 
+        # --- Nếu ĐÃ ĐỦ thông tin thì mới tiến hành kiểm tra trùng lịch bên dưới ---
         try:
             parsed_date = datetime.strptime(date_str, '%d/%m/%Y').date()
             parsed_time = datetime.strptime(appointment_time_str, '%H:%M').time()
         except ValueError:
-            dispatcher.utter_message(text="Lỗi: Ngày hoặc giờ không hợp lệ.")
-            return {"decription": None}
+            # Ngày giờ lỗi thì cũng cho qua mô tả, để các slot ngày giờ tự validate lại
+            return {"decription": desc_input}
 
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
@@ -2192,23 +2410,20 @@ class ValidateBookAppointmentForm(FormValidationAction):
             
             maBS = bs_result['maBS']
             
-            # Lấy ca làm việc chứa giờ khám này
+            # ... (Đoạn code lấy target_slot giữ nguyên) ...
             query_slot = """
             SELECT giobatdau, gioketthuc
             FROM thoigiankham
             WHERE maBS = %s 
               AND DATE(ngaythangnam) = %s 
-              AND trangthai != 'Nghỉ'
-            """
+            """ # Bỏ điều kiện trạng thái != Nghỉ ở đây để check chặt hơn cũng được
             cursor.execute(query_slot, (maBS, parsed_date))
             slots = cursor.fetchall()
             
             target_slot = None
             for slot in slots:
-                # (Đảm bảo bạn đã có hàm _format_time trong class)
                 start_str = self._format_time(slot['giobatdau'])
                 end_str = self._format_time(slot['gioketthuc'])
-                
                 start_obj = datetime.strptime(start_str, '%H:%M').time() 
                 end_obj = datetime.strptime(end_str, '%H:%M').time()
                 
@@ -2221,7 +2436,7 @@ class ValidateBookAppointmentForm(FormValidationAction):
                 conn.close()
                 return {"decription": desc_input}
             
-            # Kiểm tra xem đã có lịch nào trong cùng ca này chưa
+            # Kiểm tra trùng trong DB
             query_duplicate = """
             SELECT lh.mahen, lh.khunggio
             FROM lichhen lh
@@ -2236,11 +2451,9 @@ class ValidateBookAppointmentForm(FormValidationAction):
             cursor.close()
             conn.close()
             
-            # Kiểm tra xem có lịch nào cùng ca không
             for appt in existing_appointments:
                 existing_time_str = appt['khunggio']
                 try:
-                    # Parse existing time (có thể là string hoặc time object)
                     if isinstance(existing_time_str, str):
                         existing_time = datetime.strptime(existing_time_str, '%H:%M').time()
                     elif isinstance(existing_time_str, timedelta):
@@ -2248,7 +2461,6 @@ class ValidateBookAppointmentForm(FormValidationAction):
                     else:
                         existing_time = existing_time_str
                     
-                    # Kiểm tra xem existing_time có nằm trong cùng ca không
                     if target_slot['start'] <= existing_time <= target_slot['end']:
                         warning_html = f"""
                         <div style="font-family: Arial, sans-serif; background: #f8d7da;
@@ -2259,37 +2471,27 @@ class ValidateBookAppointmentForm(FormValidationAction):
                             </p>
                             <p style="margin: 4px 0;">
                                 📅 Ngày: {date_str}<br>
-                                🕐 Giờ đã đặt: {existing_time.strftime('%H:%M')}<br>
-                                🕐 Giờ bạn muốn đặt: {appointment_time_str}<br>
-                                ⏰ Cùng ca: {target_slot['start_str']} - {target_slot['end_str']}
-                            </p>
-                            <p style="margin: 8px 0 0 0; font-weight: bold;">
-                                Vui lòng chọn ca khác hoặc ngày khác để tránh trùng lặp.
+                                ⏰ Ca trùng: {target_slot['start_str']} - {target_slot['end_str']}
                             </p>
                         </div>
                         """
                         dispatcher.utter_message(text=warning_html, metadata={"html": True})
                         
-                        # ===============================================
-                        # SỬA ĐỔI QUAN TRỌNG:
-                        # Reset tất cả các slot liên quan
-                        # ===============================================
+                        # Reset date và time để chọn lại, nhưng giữ lại description
                         return {
                             "date": None,
                             "appointment_time": None,
-                            "decription": None
+                            "decription": desc_input 
                         }
                 
                 except Exception as e:
-                    print(f"[WARNING] Error parsing existing appointment time: {e}")
                     continue
             
-            # Không có trùng lịch -> OK
             return {"decription": desc_input}
             
         except Error as e:
-            dispatcher.utter_message(text=f"Lỗi DB khi kiểm tra trùng lịch: {e}")
-            return {"decription": None}
+            print(f"[ERROR] DB check duplicate: {e}")
+            return {"decription": desc_input}
 
 
 class ActionBookAppointment(Action):

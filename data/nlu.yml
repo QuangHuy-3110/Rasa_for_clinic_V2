@@ -101,164 +101,45 @@ nlu:
 
   - intent: provide_medical_info
     examples: |
-      - [đau đầu](symptom) [chóng mặt](symptom) và [buồn nôn](symptom)
-      - bị [ho](symptom) khan [sốt](symptom)
-      - tôi bị [đau bụng](symptom) kèm [tiêu chảy](symptom) và [đầy hơi](symptom) [khó tiêu](symptom)
-      - [da](symptom) [nổi mẩn đỏ](symptom) và [ngứa](symptom)
-      - [mệt mỏi](symptom) toàn thân [chóng mặt](symptom) [tim](symptom) [đập nhanh](symptom)
-      - [đau ngực](symptom) cảm giác [tức ngực](symptom) và [khó thở](symptom) nhẹ
-      - [buồn nôn](symptom) kèm theo [nôn mửa](symptom) [dạ dày](symptom) [đau](symptom) âm ỉ
-      - [tiêu chảy](symptom) liên tục [phân lỏng](symptom) [mất nước](symptom)
-      - [đau khớp](symptom) tay chân [sưng tấy](symptom) [cứng khớp](symptom)
-      - tôi bị [đau lưng](symptom) dưới
-      - [ho](symptom) [sốt](symptom) cao và [đau họng](symptom) rát
-      - [nổi mụn nước](symptom) ở miệng và lưỡi [sốt](symptom) nhẹ
-      - [đau mắt](symptom) đỏ
-      - [khó thở](symptom) [ho](symptom) nhiều
-      - [tê](symptom) tay chân phải [chóng mặt](symptom) [thiếu vitamin](symptom)
-      - [đau dạ dày](symptom) âm ỉ [đầy bụng](symptom) [khó tiêu](symptom) hay bị [trào ngược](symptom)
-      - [phát ban](symptom) toàn thân [ngứa ran](symptom) và [sưng](symptom) [da](symptom) [nóng](symptom) rát
-      - [sốt](symptom) cao [ớn lạnh](symptom) và [đau cơ](symptom) toàn thân [đau đầu](symptom)
-      - [đau tai](symptom) phải [ù](symptom) [điếc](symptom) [chảy dịch](symptom) vàng và [sốt](symptom)
-      - [mất ngủ](symptom) [tim đập](symptom) nhanh
-      - tôi bị [dị ứng](symptom) phấn hoa [chảy nước mũi](symptom) [mắt ngứa đỏ](symptom)
-      - [đau vai gáy](symptom) [tê mỏi](symptom)
-      - [bé](symptom) nhà tôi bị phát [sốt](symptom) quấy khóc và [bỏ bú](symptom)
-      - [đau răng](symptom) hàm dưới [sưng má](symptom) và [sốt](symptom)
-      - [chóng mặt](symptom) quay cuồng kèm theo [ù tai](symptom) và [buồn nôn](symptom)
-      - [da khô](symptom) [nứt nẻ](symptom) và [ngứa](symptom)
-      - [đau cổ họng](symptom) khi nuốt [amidan sưng](symptom) to và [sốt](symptom) bị [viêm họng](symptom)
-      - [tiểu buốt](symptom) và [tiểu ra máu](symptom) [đau](symptom) vùng [bàng quang](symptom)
-      - tôi bị [đau đầu](symptom)
-      - tôi bị [đau bụng](symptom)
-      - tôi bị [sốt cao](symptom)
-      - [đau họng](symptom)
-      - tôi bị [sốt](symptom) 3 4 ngày chưa hết
-      - tôi cảm thấy [khó chịu](symptom) trong người không khỏe lắm
-      - [đau bụng](symptom) [tiêu chảy](symptom) và [ho](symptom)
-      - mấy hôm nay tôi có cảm giác [ăn không ngon](symptom) [không có tiêu](symptom)
-      - [mệt mỏi](symptom) và [chóng mặt](symptom) suốt cả tuần
-      - bé nhà tôi bị [tiêu chảy](symptom) kèm [nôn](symptom)
-      - [đau ngực](symptom) khi thở có thể là [ho hen](symptom)
-      - tôi hay bị [đau lưng](symptom) sau khi ngồi lâu
-      - [sốt nhẹ](symptom) và [đau cơ](symptom) sau khi tập gym
-      - [ngứa mắt](symptom) và chảy nước mũi liên tục
-      - vấn đề của tôi là [đau đầu](symptom)
-      - tôi đang gặp phải [sốt](symptom)
-      - triệu chứng là [đau bụng](symptom)
-
-
-      - tôi bị [đau đầu](symptom) và [chóng mặt](symptom)
-      - dạo này tôi hay [mất ngủ](symptom) và [rối loạn trí nhớ](symptom)
-      - bệnh nhân bị [co giật](symptom) và [mất ý thức](symptom)
-      - tôi cảm thấy [tê bì tay chân](symptom) và [run tay](symptom)
-      - triệu chứng là [đau nửa đầu](symptom)
-      - bố tôi bị [yếu liệt](symptom) nửa người và [méo miệng](symptom)
-      - dạo này [nói khó](symptom) và có dấu hiệu [sa sút trí tuệ](symptom)
-      - bị [đau dây thần kinh tọa](symptom)
-      - mắt tôi dạo này [nhìn mờ](symptom) và thỉnh thoảng [nhìn đôi](symptom)
-      - anh ấy bị [lú lẫn](symptom) sau tai nạn
-      - tôi bị [co giật mi mắt](symptom) liên tục
-      - bị [đau vai gáy lan xuống tay](symptom)
-      - tôi bị [rối loạn tiền đình](symptom) nên hay [mất thăng bằng](symptom)
-      - anh ấy bị [liệt mặt](symptom)
-      - ông tôi có [dáng đi bất thường](symptom)
-      - tôi hay bị [ngủ rũ](symptom) vào ban ngày
-      - con tôi có triệu chứng [mộng du](symptom)
-
-
-      - tôi bị [sốt](symptom) và [mệt mỏi](symptom)
-      - tôi bị [ho](symptom) và [khó thở](symptom)
-      - [đau ngực](symptom) và [đánh trống ngực](symptom)
-      - tôi bị [đau khớp](symptom) gối
-      - bị [tiêu chảy](symptom) và [buồn nôn](symptom)
-      - tôi [đau bụng](symptom) và [chán ăn](symptom)
-      - dạo này [sụt cân không rõ nguyên nhân](symptom)
-      - da tôi bị [vàng da](symptom)
-      - chân tôi bị [phù nề](symptom)
-      - tôi bị [táo bón](symptom) và [ợ nóng](symptom)
-      - tôi bị [cao huyết áp](symptom)
-      - sáng nay tôi [ho ra máu](symptom)
-      - ăn [khó tiêu](symptom) và [đầy hơi](symptom)
-      - tôi bị [tiểu nhiều](symptom) và [khát nước nhiều](symptom)
-      - cổ tôi bị [sưng hạch](symptom)
-      - da dẻ [da xanh xao](symptom) và [dễ bầm tím](symptom)
-
-
-      - tôi bị [chấn thương](symptom) ở chân
-      - nghi ngờ bị [gãy xương](symptom) tay
-      - tôi có một [vết thương hở](symptom)
-      - tôi bị [đau lưng](symptom) và [đau vai gáy](symptom)
-      - có một [u bướu ngoài da](symptom)
-      - vết mổ bị [sưng tấy](symptom)
-      - cảm thấy [đau sau phẫu thuật](symptom)
-      - tôi bị [bỏng](symptom) nước sôi
-      - nách tôi bị [áp xe](symptom)
-      - tôi bị [đau bụng cấp](symptom) dữ dội
-      - bác sĩ chẩn đoán [thoát vị](symptom)
-      - tôi bị [trĩ](symptom)
-      - [vết thương nhiễm trùng](symptom)
-      - đi khám ra [sỏi mật](symptom)
-      - bệnh nhân bị [tắc ruột](symptom)
-      - nghi ngờ [viêm ruột thừa](symptom)
-      - tôi sờ thấy [u vú](symptom)
-      - mẹ tôi bị [bướu cổ (cần phẫu thuật)](symptom)
-
-
-      - con tôi bị [sốt ở trẻ em](symptom)
-      - bé bị [ho ở trẻ em](symptom) và [sổ mũi](symptom)
-      - cháu hay [nôn trớ](symptom) sau khi ăn
-      - bé thở [khò khè](symptom)
-      - con tôi [biếng ăn](symptom) và [chậm lớn](symptom)
-      - [tiêu chảy ở trẻ em](symptom)
-      - bé bị [phát ban](symptom) khắp người
-      - bé bị [vàng da sơ sinh](symptom)
-      - con tôi [co giật do sốt](symptom)
-      - bé [quấy khóc kéo dài](symptom)
-      - [táo bón ở trẻ](symptom)
-      - bé [thở nhanh](symptom) và [bỏ bú](symptom)
-      - nghi ngờ bé [chậm nói](symptom)
-      - con tôi có dấu hiệu [tự kỷ](symptom)
-      - bé bị [dị ứng sữa](symptom)
-      - [rốn lồi](symptom) ở trẻ sơ sinh
-
-
-      - tôi bị [trễ kinh](symptom)
-      - tôi bị [đau bụng dưới](symptom) và [ra khí hư bất thường](symptom)
-      - bị [chảy máu âm đạo](symptom)
-      - vợ tôi bị [ốm nghén](symptom)
-      - tôi bị [đau lưng khi mang thai](symptom)
-      - [rối loạn kinh nguyệt](symptom)
-      - tôi [nghi ngờ mang thai](symptom)
-      - tôi bị [ngứa vùng kín](symptom) và [đau rát khi quan hệ](symptom)
-      - tôi muốn [khám thai định kỳ](symptom)
-      - vợ chồng tôi bị [hiếm muộn](symptom)
-      - bác sĩ nói tôi bị [u xơ tử cung](symptom)
-      - phát hiện [u nang buồng trứng](symptom)
-      - tôi bị [đau bụng kinh dữ dội](symptom)
-      - mẹ tôi bị [ra máu sau mãn kinh](symptom)
-      - tôi muốn [tư vấn tránh thai](symptom)
-      - tôi cần [khám phụ khoa](symptom)
-
-
-      - tôi bị [đau răng](symptom) và [sưng nướu](symptom)
-      - tôi bị [hôi miệng](symptom)
-      - [chảy máu chân răng](symptom) khi đánh răng
-      - tôi bị [viêm lợi](symptom) và [sâu răng](symptom)
-      - [nhức răng](symptom) quá
-      - tôi bị [hàm lệch](symptom)
-      - [răng ê buốt](symptom) khi ăn đồ lạnh
-      - tôi đang [mọc răng khôn](symptom)
-      - bác sĩ nói [viêm tủy răng](symptom)
-      - tôi bị [loét miệng](symptom)
-      - tôi bị [gãy răng](symptom) do tai nạn
-      - [răng mọc lệch](symptom)
-      - tôi [cần nhổ răng](symptom)
-      - tôi muốn [niềng răng](symptom)
-      - tư vấn [làm răng sứ](symptom)
-      - tôi bị [đau khớp thái dương hàm](symptom)
-      - tôi muốn lấy [vôi răng](symptom)
-      - tôi bị [tụt nướu](symptom)
+      - tôi bị đau đầu choáng váng mỗi khi đứng lên
+      - sáng nay tôi đau bụng quặn và đi ngoài liên tục
+      - cổ họng tôi bị khô rát và khó nuốt
+      - tôi bị đau thắt lưng lan xuống chân trái
+      - dạo gần đây tôi khó ngủ và hay giật mình giữa đêm
+      - tôi bị ngứa ở tay và nổi mảng đỏ
+      - tôi thấy đau sau gáy và chóng mặt
+      - bé nhà tôi bị ho đờm và thở khò khè khi ngủ
+      - tôi bị nôn ói và đau dạ dày
+      - chân tôi thường bị chuột rút vào ban đêm
+      - tôi hay bị đau tức ngực khi vận động
+      - tôi bị mệt mỏi kéo dài và khó tập trung
+      - con tôi bị sốt nhẹ và biếng ăn
+      - tôi bị đau răng và nhức cả bên hàm
+      - tôi bị ngứa mắt và chảy nước mắt liên tục
+      - gần đây tôi bị đau khớp đầu gối khi đi lại
+      - tôi bị sưng hạch ở cổ và hơi đau
+      - tôi bị khó thở khi nằm xuống
+      - tôi có cảm giác đầy hơi và khó tiêu sau khi ăn
+      - bé nhà tôi nôn trớ nhiều sau khi bú
+      - tôi bị đau bụng dưới và đi tiểu buốt
+      - tôi thường xuyên ho về đêm và khó chịu ở ngực
+      - tôi bị đau vai gáy mỗi sáng thức dậy
+      - gần đây tôi bị sụt cân không rõ lý do
+      - tôi thấy tim đập nhanh và khó chịu
+      - tôi bị nổi mẩn đỏ khắp người và ngứa rát
+      - tôi bị táo bón nhiều ngày và đau bụng âm ỉ
+      - tôi bị tiểu nhiều và rất khát nước
+      - mắt tôi nhìn mờ vào buổi tối
+      - tôi hay bị tê tay chân khi đang ngủ
+      - tôi có cảm giác buồn nôn cả ngày
+      - tôi bị lạnh run và đau người giống cảm cúm
+      - tôi thấy khó chịu vùng cổ họng và muốn ho liên tục
+      - con tôi hay quấy khóc và sốt li bì
+      - tôi bị bỏng nước nóng ở tay và đang rát
+      - tôi bị vết thương hở và chảy dịch
+      - tôi bị đau bụng cấp dữ dội không chịu nổi
+      - tôi sờ thấy có u cục nhỏ ở ngực
+      - mẹ tôi bị đau cổ và nói chuyện khó khăn
 
   - intent: book_with_doctor
     examples: |
