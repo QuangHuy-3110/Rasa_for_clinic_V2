@@ -456,6 +456,12 @@ nlu:
       - bác sĩ [Hoàng Văn E](doctor_name) khám về cái gì
       - bác sĩ [Văn E](doctor_name) khám cái gì
 
+      - /ask_doctor_info{"doctor_id":"[BS001](doctor_id)"}
+      - /ask_doctor_info{"doctor_id":"[BS002](doctor_id)"}
+      - /ask_doctor_info{"doctor_id":"[BS003](doctor_id)"}
+      - /ask_doctor_info{"doctor_id":"[BS004](doctor_id)"}
+      - thông tin bác sĩ [BS005](doctor_id)
+
   # ==================================== Tra cứu thông tin chuyên khoa =============================================================
   - intent: explain_specialty
     examples: |
@@ -1047,3 +1053,10 @@ nlu:
       - có lịch khám nào đang chưa khám hay không
       - có lịch khám nào còn hẹn không
       - trigger_reminder_check_on_login
+
+  - intent: cancel_specific_appointment
+    examples: |
+      - /cancel_specific_appointment{"appointment_id":"[LH0001](appointment_id)"}
+      - /cancel_specific_appointment{"appointment_id":"[LH0002](appointment_id)"}
+      - /cancel_specific_appointment{"appointment_id":"[LH0003](appointment_id)"}
+      - hủy lịch [LH0004](appointment_id)

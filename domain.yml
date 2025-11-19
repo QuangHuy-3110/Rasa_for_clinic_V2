@@ -29,6 +29,7 @@ intents:
   - list_all_doctors # ← THÊM MỚI
   - ask_doctor_schedule
   - trigger_reminder_check_on_login
+  - cancel_specific_appointment
 
 entities:
   - symptom

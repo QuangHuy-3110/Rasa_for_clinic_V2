@@ -318,6 +318,14 @@ rules:
       - active_loop: null
       - action: action_confirm_cancel
 
+  - rule: Handle specific appointment cancellation (from button)
+    steps:
+      - intent: cancel_specific_appointment
+      - slot_was_set: # Đảm bảo NLU đã trích xuất ID
+          - selected_appointment_id
+      - action: action_set_current_task # Sẽ set current_task = 'cancel_appointment'
+      - action: action_confirm_cancel # Bỏ qua form, đi thẳng đến xác nhận
+
   - rule: Perform cancel after affirm
     condition:
       - slot_was_set:
