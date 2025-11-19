@@ -1499,26 +1499,43 @@ class ActionRecommendDoctor(Action):
                 doctors = cursor.fetchall()
                 
                 if doctors:
-                    dispatcher.utter_message(
-                        text=f"🏥 <b>Danh sách bác sĩ {spec}:</b>", 
-                        html=True
-                    )
+                    # 1. Khởi tạo khối HTML (Container) đẹp mắt
+                    # Bao gồm cả Tiêu đề (Header) và nội dung bên trong
+                    html_block = f"""
+                    <div style="font-family: Arial, sans-serif; border: 1px solid #cce0ff; border-radius: 10px; overflow: hidden; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <div style="background-color: #e7f3ff; color: #0056b3; padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #cce0ff;">
+                            🏥 Danh sách bác sĩ {spec}
+                        </div>
+                        <div style="padding: 10px 15px; background-color: #fff;">
+                    """
                     
-                    for doc in doctors:
-                        doc_card = f"""
-                        <div style="margin-left: 15px; margin-bottom: 8px; border-left: 3px solid #28a745; padding-left: 10px;">
-                            <b>👨‍⚕️ BS {doc['tenBS']}</b><br>
-                            📞 {doc['sdtBS']}
+                    # 2. Danh sách nút bấm (sẽ gom lại để hiển thị cuối tin nhắn)
+                    buttons_list = []
+
+                    # 3. Lặp qua từng bác sĩ để nối chuỗi HTML và tạo nút
+                    for i, doc in enumerate(doctors):
+                        # Tạo đường kẻ mờ giữa các bác sĩ (trừ người cuối cùng)
+                        border_style = "border-bottom: 1px dashed #eee; padding-bottom: 8px; margin-bottom: 8px;" if i < len(doctors) - 1 else ""
+                        
+                        html_block += f"""
+                        <div style="{border_style}">
+                            <div style="font-weight: bold; color: #333; font-size: 15px;">👨‍⚕️ BS {doc['tenBS']}</div>
+                            <div style="color: #666; font-size: 14px;">📞 SĐT: {doc['sdtBS']}</div>
                         </div>
                         """
-                        dispatcher.utter_message(
-                            text=doc_card,
-                            buttons=[{
-                                "title": f"Đặt lịch với bác sĩ {doc['tenBS']}", 
-                                "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
-                            }],
-                            html=True
-                        )
+                        
+                        # Thêm nút đặt lịch cho bác sĩ này
+                        buttons_list.append({
+                            "title": f"📅 Đặt lịch BS {doc['tenBS']}", 
+                            "payload": f"/book_with_doctor{{\"doctor_id\":\"{doc['maBS']}\", \"specialty\":\"{doc['tenCK']}\"}}"
+                        })
+
+                    # 4. Đóng thẻ div
+                    html_block += "</div></div>"
+
+                    # 5. Gửi MỘT LẦN DUY NHẤT cho chuyên khoa này
+                    dispatcher.utter_message(text=html_block, buttons=buttons_list, html=True)
+
                 else:
                     dispatcher.utter_message(text=f"⚠️ Hiện chưa có bác sĩ trực thuộc khoa {spec}.")
 
