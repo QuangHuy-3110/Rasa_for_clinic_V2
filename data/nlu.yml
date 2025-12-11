@@ -3,6 +3,14 @@ version: "3.1"
 nlu:
   - intent: greet
     examples: |
+      - hỗ trợ tui
+      - giúp tôi với
+      - hãy giúp tôi
+      - bạn có thể giúp tôi không
+      - bạn giúp tôi với
+      - bạn có thể giúp tôi được không
+      - chào bạn ơi
+      - hỗi trợ tôi
       - xin chào
       - chào bạn
       - hello
@@ -223,6 +231,21 @@ nlu:
       - da khô nứt nẻ và ngứa, tệ hơn vào mùa đông, bong tróc ở khuỷu tay
       - đau cổ họng khi nuốt, amidan sưng to và sốt, có thể bị viêm họng
       - tiểu buốt và tiểu ra máu, đau vùng bàng quang, đi tiểu nhiều lần
+      - tôi bây giờ tình trạng sức khỏe tốt hơn nhiều và tôi tới để tái khám
+      - tôi đã hồi phục sau đợt điều trị trước và muốn tái khám để kiểm tra lại
+      - tôi cảm thấy khỏe hơn rồi và muốn đặt lịch tái khám
+      - tôi đã ổn định sức khỏe và muốn tái khám để theo dõi tiến triển
+      - tôi muốn tái khám sau khi đã hoàn thành liệu trình điều trị
+      - tôi muốn đặt lịch tái khám sau khi đã dùng thuốc theo đơn
+      - tôi cảm thấy tốt hơn và muốn tái khám để bác sĩ đánh giá lại
+      - tôi đã khỏe lại và muốn đặt lịch tái khám để kiểm tra sức khỏe tổng quát
+      - tôi muốn tái khám
+      - tái khám
+      - tôi cần tái khám
+      - tôi muốn tới để tái khám
+      - tôi cần tới để tái khám
+      - tôi muốn kiểm tra sức khỏe lại
+      - tôi cần kiểm tra sức khỏe lại
 
   - intent: provide_specialty
     examples: |
@@ -336,6 +359,13 @@ nlu:
       - bác sĩ [Nguyễn Văn A](doctor_name) thông tin
       - bác sĩ [Hoàng Văn E](doctor_name) khám về cái gì
       - bác sĩ [Văn E](doctor_name) khám cái gì
+      - bác sĩ [Đặng Thị F](doctor_name) là ai vậy
+      - bác sĩ [Phạm Thị Hà Hồng H](doctor_name) là người như thế nào
+      - bác sĩ [Trần Thị I](doctor_name) có chuyên môn gì
+      - bác sĩ [Lê Văn K](doctor_name) có lý lịch như thế nào
+      - bác sĩ [Ngô Thị L](doctor_name) là người như thế nào
+      - bác sĩ [Phan M](doctor_name) như thế nào
+      - bác sĩ [Phan M](doctor_name) thuộc chuyên khoa nào
 
       - /ask_doctor_info{"doctor_id":"[BS001](doctor_id)"}
       - /ask_doctor_info{"doctor_id":"[BS002](doctor_id)"}
@@ -727,6 +757,13 @@ nlu:
       - xem lại bác sĩ khám bệnh
       - lần trước ai khám
       - bác sĩ nào đã khám cho tôi
+      - bác sĩ đã khám cho tôi
+      - tôi đã khám với những bác sĩ nào
+      - tôi muốn biết bác sĩ nào đã khám tôi
+      - tôi muốn biết ai đã khám cho tôi
+      - tôi muốn biết trước giờ ai khám cho tôi
+      - tôi muốn biết bác sĩ nào đã từng khám cho tôi
+      - tôi muốn biết ai đã từng khám cho tôi
       - tôi muốn biết bác sĩ đã khám tôi
       - ai đã khám cho tôi vậy
       - trước giờ ai khám cho tôi
@@ -880,6 +917,13 @@ nlu:
 
   - intent: ask_doctor_schedule
     examples: |
+      - lịch làm việc của bác sĩ như thế nào
+      - Thời gian khám của bác sĩ [Nguyễn Văn A](doctor_name)
+      - Tôi muốn biết lịch làm việc của bác sĩ [Trần Thị B](doctor_name)
+      - cho tôi xem lịch làm việc của bác sĩ [Lê Văn C](doctor_name)
+      - khi nào bác sĩ [Anh](doctor_name) làm việc vậy
+      - Tôi muốn xem thời gian làm việc của bác sĩ [Dũng](doctor_name)
+      - cho tôi xem lịch tuần này của bác sĩ [Anh](doctor_name)
       - Tôi muốn xem lịch làm việc của bác sĩ [Nguyễn Văn A](doctor_name)
       - lịch làm việc của bác sĩ [Trần Thị B](doctor_name) như thế nào?
       - xem lịch của bác sĩ [Lê Văn C](doctor_name)
@@ -941,3 +985,41 @@ nlu:
       - /cancel_specific_appointment{"appointment_id":"[LH0002](appointment_id)"}
       - /cancel_specific_appointment{"appointment_id":"[LH0003](appointment_id)"}
       - hủy lịch [LH0004](appointment_id)
+
+  - intent: list_all_specialties
+    examples: |
+      - có những chuyên khoa nào
+      - danh sách chuyên khoa
+      - phòng khám có những khoa nào
+      - liệt kê các chuyên khoa
+      - cho tôi xem danh sách các khoa
+      - bên bạn khám những bệnh gì
+      - các chuyên khoa hiện có
+      - show all specialties
+      - khoa khám bệnh gồm những gì
+      - danh mục chuyên khoa
+      - tổng hợp các khoa
+
+  - intent: check_reexamination_date
+    examples: |
+      - khi nào tới ngày tái khám
+      - bao giờ tôi phải đi tái khám
+      - kiểm tra lịch tái khám giúp tôi
+      - xem ngày tái khám
+      - tôi có lịch tái khám không
+      - ngày tái khám của tôi là ngày nào
+      - bác sĩ hẹn ngày nào quay lại
+      - lịch tái khám gần nhất
+      - tôi cần biết ngày tái khám
+      - kiểm tra ngày tái khám  
+      - khi nào tôi phải tái khám
+      - tôi cần đi tái khám vào ngày nào  
+      - cho tôi biết ngày tái khám của tôi
+      - kiểm tra giúp tôi ngày tái khám
+      - xem giúp tôi ngày tái khám
+      - kiểm tra lịch tái khám của tôi
+      - khi nào tôi cần tái khám
+      - tái khám vào ngày nào
+      - tái khám khi nào
+      - tái khám giúp tôi
+      - tái khám

@@ -16,6 +16,17 @@ action_endpoint:
 # By default the conversations are stored in memory.
 # https://rasa.com/docs/rasa/tracker-stores
 
+tracker_store:
+  type: sql
+  dialect: "mysql+pymysql" # Hoặc mysql+mysqlconnector
+  url: "localhost" # Host của DB (hoặc IP server)
+  port: 3306
+  db: "rasa_clinic" # Tên DB bạn đã tạo
+  username: "root"
+  password: "1"
+  # Query driver (tùy chọn)
+  query:
+    charset: utf8mb4
 #tracker_store:
 #    type: redis
 #    url: <host of the redis instance, e.g. localhost>

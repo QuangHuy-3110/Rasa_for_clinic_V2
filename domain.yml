@@ -30,6 +30,8 @@ intents:
   - ask_doctor_schedule
   - trigger_reminder_check_on_login
   - cancel_specific_appointment
+  - list_all_specialties
+  - check_reexamination_date
 
 entities:
   - symptom
@@ -44,6 +46,13 @@ entities:
   - prescription_date # ← THÊM MỚI
 
 slots:
+  just_listed_all_specialties_dummy:
+    type: bool
+    initial_value: false
+    influence_conversation: false
+    mappings:
+      - type: custom
+
   just_asked_doctor_schedule_dummy:
     type: bool
     initial_value: false
@@ -128,6 +137,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
 
   doctor_id:
     type: text
@@ -208,6 +219,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
 
   search_latest_prescription:
     type: bool
@@ -244,6 +257,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
 
   doctor_name:
     type: text
@@ -285,6 +300,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
 
   appointment_time:
     type: text
@@ -330,6 +347,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
       - type: custom
 
   decription:
@@ -375,6 +394,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
 
   specialty:
     type: text
@@ -415,6 +436,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
 
   date:
     type: text
@@ -455,6 +478,8 @@ slots:
           - list_all_doctors
           - ask_doctor_schedule
           - trigger_reminder_check_on_login
+          - list_all_specialties
+          - check_reexamination_date
       - type: custom
 
   selected_appointment_id:
@@ -488,6 +513,8 @@ responses:
           payload: "/cancel_appointment"
         - title: "💊 Tra cứu toa thuốc"
           payload: "/search_prescription"
+        - title: "Ngày hẹn tái khám"
+          payload: "/check_reexamination_date"
       metadata:
         html: true
 
@@ -518,6 +545,8 @@ responses:
           payload: "/book_appointment"
         - title: "💊 Tra cứu toa thuốc"
           payload: "/search_prescription"
+        - title: "Ngày hẹn tái khám"
+          payload: "/check_reexamination_date"
         - title: "🧑‍💼 Kết nối hỗ trợ viên"
           payload: "HANDOFF_TO_HUMAN"
       metadata:
@@ -702,6 +731,8 @@ actions:
   - action_list_all_doctors
   - action_show_doctor_schedule
   - action_default_fallback
+  - action_list_all_specialties
+  - action_check_reexamination_date
 
 session_config:
   session_expiration_time: 60

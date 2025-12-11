@@ -1,91 +1,610 @@
-#### This file contains tests to evaluate that your bot behaves as expected.
-#### If you want to learn more, please see the docs: https://rasa.com/docs/rasa/testing-your-assistant
-
 stories:
-- story: happy path 1
-  steps:
-  - user: |
-      hello there!
-    intent: greet
-  - action: utter_greet
-  - user: |
-      amazing
-    intent: mood_great
-  - action: utter_happy
+  # ============================================================================
+  # TEST CASE 1: Happy Path - Đề xuất bác sĩ (Recommend Doctor)
+  # Mục tiêu: Kiểm tra form đề xuất hoạt động và slot symptoms được điền đúng.
+  # ============================================================================
+  - story: Test recommend doctor path
+    steps:
+      - user: |
+          xin chào
+        intent: greet
+      - action: utter_greet
+      - user: |
+          tôi muốn bạn đề xuất bác sĩ
+        intent: request_doctor
+      - action: action_set_current_task
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+      - user: |
+          tôi bị đau đầu và sốt cao
+        intent: provide_medical_info
+        entities:
+          - symptom: "đau đầu"
+          - symptom: "sốt cao"
+      - action: recommend_doctor_form
+      - active_loop: null
+      - action: action_recommend_doctor
 
-- story: happy path 2
-  steps:
-  - user: |
-      hello there!
-    intent: greet
-  - action: utter_greet
-  - user: |
-      amazing
-    intent: mood_great
-  - action: utter_happy
-  - user: |
-      bye-bye!
-    intent: goodbye
-  - action: utter_goodbye
+  # ============================================================================
+  # TEST CASE 2: Happy Path - Đặt lịch khám (Book Appointment)
+  # Mục tiêu: Kiểm tra điền đầy đủ 5 slots của form đặt lịch.
+  # ============================================================================
+  - story: Test booking appointment path
+    steps:
+      - user: |
+          đặt lịch khám
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          chuyên khoa nhi
+        intent: provide_specialty
+        entities:
+          - specialty: "nhi"
+      - action: book_appointment_form
+      - user: |
+          bác sĩ Nguyễn Văn A
+        intent: choose_doctor_name
+        entities:
+          - doctor_name: "Nguyễn Văn A"
+      - action: book_appointment_form
+      - user: |
+          ngày 20/10/2025
+        intent: provide_date
+        entities:
+          - date: "20/10/2025"
+      - action: book_appointment_form
+      - user: |
+          lúc 9h sáng
+        intent: provide_time
+        entities:
+          - time: "9h sáng"
+      - action: book_appointment_form
+      - user: |
+          bé bị ho và sốt về đêm
+        intent: provide_decription
+        entities:
+          - decription: "bé bị ho và sốt về đêm"
+      - action: book_appointment_form
+      - active_loop: null
+      - action: action_book_appointment
+      - user: |
+          ok đúng rồi
+        intent: affirm
+      - action: action_submit_booking
 
-- story: sad path 1
-  steps:
-  - user: |
-      hello
-    intent: greet
-  - action: utter_greet
-  - user: |
-      not good
-    intent: mood_unhappy
-  - action: utter_cheer_up
-  - action: utter_did_that_help
-  - user: |
-      yes
-    intent: affirm
-  - action: utter_happy
+  # ============================================================================
+  # TEST CASE 3: Happy Path - Hủy lịch khám (Cancel Appointment)
+  # Mục tiêu: Kiểm tra luồng hủy, bao gồm chọn ID lịch hẹn.
+  # ============================================================================
+  - story: Test cancel appointment path
+    steps:
+      - user: |
+          hủy lịch khám
+        intent: cancel_appointment
+      - action: action_cancel_appointment
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+      - user: |
+          ngày 15/11/2025
+        intent: provide_date
+        entities:
+          - date: "15/11/2025"
+      - action: cancel_appointment_form
+      - user: |
+          chọn lịch số 1
+        intent: select_appointment
+        entities:
+          - appointment_id: "LH0001"
+      - action: cancel_appointment_form
+      - active_loop: null
+      - action: action_confirm_cancel
+      - user: |
+          đúng
+        intent: affirm
+      - action: action_perform_cancel
 
-- story: sad path 2
-  steps:
-  - user: |
-      hello
-    intent: greet
-  - action: utter_greet
-  - user: |
-      not good
-    intent: mood_unhappy
-  - action: utter_cheer_up
-  - action: utter_did_that_help
-  - user: |
-      not really
-    intent: deny
-  - action: utter_goodbye
+  # ============================================================================
+  # TEST CASE 4: Happy Path - Tìm toa thuốc (Search Prescription)
+  # Mục tiêu: Kiểm tra tính năng mới thêm vào.
+  # ============================================================================
+  - story: Test search prescription by date
+    steps:
+      - user: |
+          tìm giúp tôi toa thuốc
+        intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - user: |
+          ngày 25/10/2025
+        intent: provide_date
+        entities:
+          - date: "25/10/2025"
+      - action: search_prescription_form
+      - active_loop: null
+      - action: action_show_prescription_results
 
-- story: sad path 3
-  steps:
-  - user: |
-      hi
-    intent: greet
-  - action: utter_greet
-  - user: |
-      very terrible
-    intent: mood_unhappy
-  - action: utter_cheer_up
-  - action: utter_did_that_help
-  - user: |
-      no
-    intent: deny
-  - action: utter_goodbye
+  # ============================================================================
+  # TEST CASE 5: Interruption - Ngắt quãng khi đang đặt lịch
+  # Mục tiêu: Đang đặt lịch -> hỏi thông tin bác sĩ -> quay lại đặt lịch.
+  # ============================================================================
+  - story: Test interruption in booking form (Ask Doctor Info)
+    steps:
+      - user: |
+          đặt lịch khám
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          khoa nội
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nội"
+      - action: book_appointment_form
+      # --- Bắt đầu ngắt quãng ---
+      - user: |
+          bác sĩ Nguyễn Văn A là ai
+        intent: ask_doctor_info
+        entities:
+          - doctor_name: "Nguyễn Văn A"
+      - action: action_show_doctor_info_in_form
+      # --- Kết thúc ngắt quãng, Form tự động kích hoạt lại ---
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          chọn bác sĩ Nguyễn Văn A
+        intent: choose_doctor_name
+        entities:
+          - doctor_name: "Nguyễn Văn A"
+      # (Tiếp tục flow bình thường, rút gọn cho ngắn test case)
+      - action: book_appointment_form
 
-- story: say goodbye
-  steps:
-  - user: |
-      bye-bye!
-    intent: goodbye
-  - action: utter_goodbye
+  # ============================================================================
+  # TEST CASE 6: Fallback - Xử lý khi Bot không hiểu trong Form
+  # Mục tiêu: Kiểm tra bot có hỏi lại không khi gặp nlu_fallback.
+  # ============================================================================
+  - story: Test NLU fallback in booking form
+    steps:
+      - user: |
+          đặt lịch
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          asdfghjkl
+        intent: nlu_fallback
+      - action: action_default_fallback
+      # Bot vẫn giữ form active và chờ input lại
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          khoa nhi
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nhi"
+      - action: book_appointment_form
 
-- story: bot challenge
-  steps:
-  - user: |
-      are you a bot?
-    intent: bot_challenge
-  - action: utter_iamabot
+  # ============================================================================
+  # TEST CASE 7: Complex Context Switch (TEDPolicy Focus)
+  # Kịch bản: Người dùng định đặt lịch -> Đổi ý hủy ngang -> Hỏi giá -> Quay lại đặt lịch
+  # Mục tiêu: Kiểm tra bot xử lý việc chuyển đổi giữa Form và các câu hỏi đơn lẻ (Stateless).
+  # ============================================================================
+  - story: Test context switching and return to task
+    steps:
+      - user: |
+          đặt lịch khám
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          thôi không đặt nữa
+        intent: deny
+      - action: action_handle_deny
+      - active_loop: null
+      - action: utter_ask_intent
+      - user: |
+          chi phí khám bệnh thế nào
+        intent: ask_price
+      - action: utter_ask_price
+      - user: |
+          vậy đặt lịch lại cho tôi đi
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          khoa nhi
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nhi"
+      - action: book_appointment_form
+
+  # ============================================================================
+  # TEST CASE 8: Long History & Indecisive User (TEDPolicy Focus)
+  # Kịch bản: Hỏi thông tin nhiều lần -> Đề xuất -> Không ưng -> Đặt lịch trực tiếp
+  # Mục tiêu: Thử thách bộ nhớ của TEDPolicy với chuỗi hội thoại dài.
+  # ============================================================================
+  - story: Test long history and indecisive user
+    steps:
+      - user: |
+          xin chào
+        intent: greet
+      - action: utter_greet
+      - user: |
+          bác sĩ Nguyễn Văn A là ai
+        intent: ask_doctor_info
+        entities:
+          - doctor_name: "Nguyễn Văn A"
+      - action: action_show_doctor_info_in_form
+      - user: |
+          thế còn bác sĩ B
+        intent: ask_doctor_info
+        entities:
+          - doctor_name: "bác sĩ B"
+      - action: action_show_doctor_info_in_form
+      - user: |
+          đề xuất bác sĩ cho tôi
+        intent: request_doctor
+      - action: action_set_current_task
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+      - user: |
+          tôi bị đau bụng
+        intent: provide_medical_info
+        entities:
+          - symptom: "đau bụng"
+      - action: recommend_doctor_form
+      - active_loop: null
+      - action: action_recommend_doctor
+      - user: |
+          thôi không cần đâu
+        intent: deny
+      - action: action_handle_deny
+      - user: |
+          tôi muốn đặt lịch luôn với bác sĩ A
+        intent: book_appointment
+        entities:
+          - doctor_name: "bác sĩ A"
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+
+  # ============================================================================
+  # TEST CASE 9: Spamming/Multiple Intents (TEDPolicy Focus)
+  # Kịch bản: Người dùng chào hỏi nhiều lần hoặc nói linh tinh trước khi vào việc.
+  # Mục tiêu: Kiểm tra bot có bị loạn khi gặp input nhiễu không.
+  # ============================================================================
+  - story: Test noisy input before task
+    steps:
+      - user: |
+          alo
+        intent: greet
+      - action: utter_greet
+      - user: |
+          chào bạn
+        intent: greet
+      - action: utter_greet
+      - user: |
+          tôi muốn tìm toa thuốc
+        intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - user: |
+          ngày hôm qua
+        intent: provide_date # Fallback date parsing có thể xảy ra ở đây
+      - action: search_prescription_form
+      - active_loop: null
+      - action: action_show_prescription_results
+
+  # ============================================================================
+  # TEST CASE 10: Slot Correction within Form
+  # Kịch bản: Người dùng nhập sai ngày, sau đó sửa lại ngay trong Form thay vì nhập giờ.
+  # Mục tiêu: Kiểm tra xem Form có chấp nhận cập nhật lại slot đã điền không.
+  # ============================================================================
+  - story: Test correcting slot in booking form
+    steps:
+      - user: |
+          đặt lịch khám
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          ngày 20/10/2025
+        intent: provide_date
+        entities:
+          - date: "20/10/2025"
+      - action: book_appointment_form
+      - user: |
+          à nhầm, ngày 21/10/2025 mới đúng
+        intent: provide_date
+        entities:
+          - date: "21/10/2025"
+      # Form nhận ngày mới và tiếp tục hỏi slot tiếp theo (time)
+      - action: book_appointment_form
+      - user: |
+          9 giờ sáng
+        intent: provide_time
+        entities:
+          - time: "9 giờ sáng"
+      - action: book_appointment_form
+      - user: |
+          khám tổng quát
+        intent: provide_decription
+        entities:
+          - decription: "khám tổng quát"
+      - action: book_appointment_form
+      - user: |
+          bác sĩ A
+        intent: choose_doctor_name
+        entities:
+          - doctor_name: "bác sĩ A"
+      - action: book_appointment_form
+      - user: |
+          khoa nội
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nội"
+      - action: book_appointment_form
+      - active_loop: null
+      - action: action_book_appointment
+
+  # ============================================================================
+  # TEST CASE 11: Slot Pre-filling (Skip Questions)
+  # Kịch bản: Người dùng cung cấp đầy đủ thông tin ngay câu mở đầu.
+  # Mục tiêu: Kiểm tra Form có thông minh bỏ qua các câu hỏi đã có thông tin không.
+  # ============================================================================
+  - story: Test booking with pre-filled slots
+    steps:
+      - user: |
+          tôi muốn đặt lịch với bác sĩ Nam vào ngày 25/12/2025
+        intent: book_appointment
+        entities:
+          - doctor_name: "bác sĩ Nam"
+          - date: "25/12/2025"
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      # Form sẽ bỏ qua câu hỏi bác sĩ và ngày, hỏi tiếp chuyên khoa
+      - user: |
+          khoa nhi
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nhi"
+      - action: book_appointment_form
+      - user: |
+          10h sáng
+        intent: provide_time
+        entities:
+          - time: "10h sáng"
+      - action: book_appointment_form
+      - user: |
+          bé bị sốt
+        intent: provide_decription
+        entities:
+          - decription: "bé bị sốt"
+      - action: book_appointment_form
+      - active_loop: null
+      - action: action_book_appointment
+
+  # ============================================================================
+  # TEST CASE 12: Out of Scope inside Form
+  # Kịch bản: Đang đặt lịch thì hỏi chuyện không liên quan (thời tiết/chính trị).
+  # Mục tiêu: Kiểm tra Rule xử lý Out-of-scope có giữ Form active không.
+  # ============================================================================
+  - story: Test out of scope inside booking form
+    steps:
+      - user: |
+          đặt lịch
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          khoa ngoại
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa ngoại"
+      - action: book_appointment_form
+      - user: |
+          thời tiết hôm nay thế nào
+        intent: out_of_scope
+      - action: action_handle_out_of_scope
+      # Form phải quay lại ngay lập tức
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          bác sĩ Hùng
+        intent: choose_doctor_name
+        entities:
+          - doctor_name: "bác sĩ Hùng"
+      - action: book_appointment_form
+
+  # ============================================================================
+  # TEST CASE 13: Multiple Interruptions (Nested)
+  # Kịch bản: Hủy lịch -> Hỏi "Ai đã khám tôi" -> Hỏi tiếp "Bác sĩ đó chuyên khoa gì" -> Quay lại hủy.
+  # Mục tiêu: Kiểm tra khả năng xử lý ngắt quãng đa tầng.
+  # ============================================================================
+  - story: Test multiple interruptions in cancel flow
+    steps:
+      - user: |
+          hủy lịch hẹn
+        intent: cancel_appointment
+      - action: action_cancel_appointment
+      - action: cancel_appointment_form
+      - active_loop: cancel_appointment_form
+      - user: |
+          ủa mà bác sĩ nào đã khám tôi vậy
+        intent: ask_who_examined_me
+      - action: action_show_examining_doctor_in_form
+      - action: cancel_appointment_form # Form re-activate lần 1
+      - active_loop: cancel_appointment_form
+      - user: |
+          chuyên khoa tim mạch chữa gì vậy
+        intent: explain_specialty
+        entities:
+          - specialty: "tim mạch"
+      - action: action_explain_specialty_in_form
+      - action: cancel_appointment_form # Form re-activate lần 2
+      - active_loop: cancel_appointment_form
+      - user: |
+          ngày 15/10/2025
+        intent: provide_date
+        entities:
+          - date: "15/10/2025"
+      - action: cancel_appointment_form
+
+  # ============================================================================
+  # TEST CASE 14: Switch Task Completely
+  # Kịch bản: Đang tìm toa thuốc -> Chán -> Chuyển sang Đề xuất bác sĩ luôn.
+  # Mục tiêu: Kiểm tra việc hủy Form cũ và bắt đầu Form mới sạch sẽ.
+  # ============================================================================
+  - story: Test switching from Prescription search to Recommend Doctor
+    steps:
+      - user: |
+          tìm toa thuốc
+        intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - user: |
+          thôi tìm bác sĩ cho tôi đi
+        intent: request_doctor
+      # Mong đợi: Form cũ bị hủy, Form mới (recommend) được kích hoạt
+      - action: action_set_current_task
+      - action: recommend_doctor_form
+      - active_loop: recommend_doctor_form
+      - user: |
+          đau lưng
+        intent: provide_medical_info
+        entities:
+          - symptom: "đau lưng"
+      - action: recommend_doctor_form
+      - active_loop: null
+      - action: action_recommend_doctor
+
+  # ============================================================================
+  # TEST CASE 15: Deny and Retry
+  # Kịch bản: Đặt lịch -> Đến bước xác nhận chọn "Không" -> Sau đó đặt lại từ đầu.
+  # Mục tiêu: Kiểm tra action_handle_deny có reset slot/task đúng không.
+  # ============================================================================
+  - story: Test deny booking confirmation and retry
+    steps:
+      - user: |
+          đặt lịch
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          khoa nhi
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nhi"
+      - action: book_appointment_form
+      - user: |
+          bác sĩ A
+        intent: choose_doctor_name
+        entities:
+          - doctor_name: "bác sĩ A"
+      - action: book_appointment_form
+      - user: |
+          ngày mai
+        intent: provide_date
+        entities:
+          - date: "ngày mai"
+      - action: book_appointment_form
+      - user: |
+          9h
+        intent: provide_time
+        entities:
+          - time: "9h"
+      - action: book_appointment_form
+      - user: |
+          ho
+        intent: provide_decription
+        entities:
+          - decription: "ho"
+      - action: book_appointment_form
+      - active_loop: null
+      - action: action_book_appointment
+      - user: |
+          không
+        intent: deny
+      - action: action_handle_deny # Bot sẽ reset và hỏi "Bạn muốn làm gì tiếp"
+      - action: utter_ask_intent
+      - user: |
+          tôi muốn đặt lịch lại
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+
+  # ============================================================================
+  # TEST CASE 16: Ask Price during different stages
+  # Kịch bản: Hỏi giá khi chưa làm gì -> Hỏi giá khi đang tìm thuốc.
+  # Mục tiêu: Kiểm tra tính nhất quán của phản hồi stateless.
+  # ============================================================================
+  - story: Test asking price in various contexts
+    steps:
+      - user: |
+          chào
+        intent: greet
+      - action: utter_greet
+      - user: |
+          giá khám bao nhiêu
+        intent: ask_price
+      - action: utter_ask_price
+      - user: |
+          tìm toa thuốc
+        intent: search_prescription
+      - action: action_search_prescription
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - user: |
+          giá thuốc mắc không
+        intent: ask_price
+      # Bot trả lời giá -> Quay lại form
+      - action: utter_ask_price
+      - action: search_prescription_form
+      - active_loop: search_prescription_form
+      - user: |
+          ngày 10/10/2025
+        intent: provide_date
+        entities:
+          - date: "10/10/2025"
+      - action: search_prescription_form
+
+  # ============================================================================
+  # TEST CASE 17: User provides unexpected entity type
+  # Kịch bản: Form hỏi ngày nhưng User trả lời triệu chứng (Medical Info).
+  # Mục tiêu: Kiểm tra Bot xử lý input không mong đợi (Unhappy path).
+  # ============================================================================
+  - story: Test unexpected input type in form
+    steps:
+      - user: |
+          đặt lịch
+        intent: book_appointment
+      - action: action_set_current_task
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          tôi bị đau đầu lắm
+        intent: provide_medical_info # Intent không khớp với slot requested (specialty/date...)
+        entities:
+          - symptom: "đau đầu"
+      # Bot không extract được slot cần thiết -> Form lặp lại câu hỏi cũ
+      - action: book_appointment_form
+      - active_loop: book_appointment_form
+      - user: |
+          khoa nội
+        intent: provide_specialty
+        entities:
+          - specialty: "khoa nội"
+      - action: book_appointment_form

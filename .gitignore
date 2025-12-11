@@ -13,4 +13,4 @@ actions/.env
 
 # Bỏ các file của .rasa
 /.rasa
-
+/results

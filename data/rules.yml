@@ -318,13 +318,41 @@ rules:
       - active_loop: null
       - action: action_confirm_cancel
 
+  # - rule: Handle specific appointment cancellation (from button)
+  #   steps:
+  #     - intent: cancel_specific_appointment
+  #     - slot_was_set: # Đảm bảo NLU đã trích xuất ID
+  #         - selected_appointment_id
+  #     - action: action_set_current_task # Sẽ set current_task = 'cancel_appointment'
+  #     - action: action_confirm_cancel # Bỏ qua form, đi thẳng đến xác nhận
+
+  # -----------------------------------------------------------
+  # RULE 1: Xử lý khi bấm nút "Hủy lịch hẹn này" (Bất kể đang làm gì cũng hủy form)
+  # -----------------------------------------------------------
   - rule: Handle specific appointment cancellation (from button)
     steps:
       - intent: cancel_specific_appointment
-      - slot_was_set: # Đảm bảo NLU đã trích xuất ID
-          - selected_appointment_id
-      - action: action_set_current_task # Sẽ set current_task = 'cancel_appointment'
-      - action: action_confirm_cancel # Bỏ qua form, đi thẳng đến xác nhận
+      # Hai dòng này cực kỳ quan trọng để GIẾT FORM đang chạy
+      - action: action_deactivate_loop
+      - active_loop: null
+      # Sau đó mới chạy logic hủy
+      - action: action_set_current_task
+      - action: action_confirm_cancel
+
+  # -----------------------------------------------------------
+  # RULE 2: Xử lý khi hỏi "lịch hẹn gần đây" TRONG LÚC đang hủy lịch
+  # -----------------------------------------------------------
+  - rule: Interruption - Ask for recent appointments during cancel form
+    condition:
+      # Rule này chỉ kích hoạt khi đang kẹt trong form hủy
+      - active_loop: cancel_appointment_form
+    steps:
+      - intent: trigger_reminder_check_on_login
+      # Ngắt form ngay lập tức
+      - action: action_deactivate_loop
+      - active_loop: null
+      # Sau đó mới hiện danh sách
+      - action: action_check_upcoming_appointments
 
   - rule: Perform cancel after affirm
     condition:
@@ -392,3 +420,13 @@ rules:
       - intent: trigger_reminder_check_on_login
       - action: action_check_upcoming_appointments
       - action: action_listen
+
+  - rule: List all specialties
+    steps:
+      - intent: list_all_specialties
+      - action: action_list_all_specialties
+
+  - rule: Check re-examination date
+    steps:
+      - intent: check_reexamination_date
+      - action: action_check_reexamination_date
